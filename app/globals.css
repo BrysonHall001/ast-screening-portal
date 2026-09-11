@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Themes. Every accent color in the app reads these variables (see
+   tailwind.config.js), so setting data-theme on <html> switches the whole
+   accent palette at once. Values are RGB triplets so Tailwind opacity
+   modifiers (like bg-astblue-50/40) keep working.
+
+   'blue' is Classic Blue: today's exact values, pixel-identical.
+   'allstar' is the company palette: orange #f87c04 accent, deep green
+   #081c24 background, with matched orange tints.
+--------------------------------------------------------------------------- */
+:root,
+[data-theme='blue'] {
+  --astblue-50: 243 246 251;
+  --astblue-100: 230 236 246;
+  --astblue-200: 199 212 233;
+  --astblue-300: 159 180 214;
+  --astblue-400: 112 144 192;
+  --astblue-500: 79 115 171;
+  --astblue-600: 59 91 140;
+  --astblue-700: 50 76 117;
+  --astblue-800: 42 62 96;
+  --astblue-900: 31 46 72;
+  --astblue-950: 15 23 42;
+  --canvas: 59 91 140;
+  --canvas-mid: 79 115 171;
+}
+
+[data-theme='allstar'] {
+  --astblue-50: 255 244 230;
+  --astblue-100: 254 231 205;
+  --astblue-200: 253 211 168;
+  --astblue-300: 252 184 119;
+  --astblue-400: 251 158 77;
+  --astblue-500: 250 148 51;
+  --astblue-600: 248 124 4;
+  --astblue-700: 217 106 3;
+  --astblue-800: 163 80 2;
+  --astblue-900: 122 60 2;
+  --astblue-950: 74 36 1;
+  --canvas: 8 28 36;
+  --canvas-mid: 14 47 60;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background-color: #f3f6fb;
+  color: #1f2937;
+}
+
+/* subtle scroll for tables */
+.scroll-thin::-webkit-scrollbar { height: 8px; width: 8px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: #c7d4e9; border-radius: 4px; }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* status pill colors used by inline cells */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+}
+
+/* Print / Save-as-PDF: drop the decorative background for a clean sheet. */
+@media print {
+  body { background: #ffffff !important; }
+}
