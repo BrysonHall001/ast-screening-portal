@@ -109,3 +109,20 @@ export interface Analysis {
   error: string | null
   analyzed_at: string
 }
+
+export interface CollectionProfileResult {
+  url: string
+  platform: string
+  status: 'collected' | 'walled' | 'empty' | 'error'
+  items: number
+  note: string
+}
+
+export interface CollectionRun {
+  id: number
+  order_id: number
+  triggered_by: string
+  results: CollectionProfileResult[]
+  started_at: string
+  finished_at: string | null
+}

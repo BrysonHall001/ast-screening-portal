@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft, Plus, Trash2, ExternalLink, Sparkles, ShieldOff,
-  ImageIcon, AlertCircle, RefreshCw,
+  ImageIcon, AlertCircle, RefreshCw, Bot,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { StatusPill } from '@/components/StatusPill'
@@ -36,6 +36,7 @@ const FLAG_COLORS: Record<string, string> = {
 
 interface ItemRow {
   id: number
+  source?: string
   platform: string
   url: string | null
   posted_at: string | null
@@ -63,6 +64,8 @@ export function CaptureWorkspace({
   const [loading, setLoading] = useState(true)
   const [flash, setFlash] = useState('')
   const [analyzing, setAnalyzing] = useState(false)
+  const [collecting, setCollecting] = useState(false)
+  const [lastRun, setLastRun] = useState<any | null>(null)
 
   // Add form state
   const [showAdd, setShowAdd] = useState(false)
@@ -81,6 +84,11 @@ export function CaptureWorkspace({
     if (res.ok) {
       const data = await res.json()
       setItems(data.items)
+    }
+    const runsRes = await fetch(`/api/orders/${order.id}/collect`)
+    if (runsRes.ok) {
+      const runsData = await runsRes.json()
+      setLastRun(runsData.runs?.[0] || null)
     }
     setLoading(false)
   }, [order.id])
@@ -127,6 +135,27 @@ export function CaptureWorkspace({
     if (!confirm('Delete this captured item?')) return
     await fetch(`/api/items/${id}`, { method: 'DELETE' })
     load()
+  }
+
+  async function autoCollect() {
+    setCollecting(true)
+    setFlash('')
+    const res = await fetch(`/api/orders/${order.id}/collect`, { method: 'POST' })
+    setCollecting(false)
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      const walled = (data.results || []).filter((r: any) => r.status === 'walled').length
+      setFlash(
+        `Auto-collect done: ${data.collected} item${data.collected === 1 ? '' : 's'} captured` +
+          (data.analysis ? ` and analyzed (${data.analysis.analyzed} ok${data.analysis.failed ? `, ${data.analysis.failed} failed` : ''})` : '') +
+          (walled ? `. ${walled} profile${walled === 1 ? '' : 's'} behind a login wall — capture those manually.` : '.')
+      )
+      if (data.analysis && data.analysis.failed === 0 && data.analysis.analyzed > 0) setStatus('in_review')
+      else if (data.collected > 0 && status === 'consent_completed') setStatus('collecting')
+      load()
+    } else {
+      setFlash(data.error || 'Auto-collect failed')
+    }
   }
 
   async function runAnalysis(rerun: boolean) {
@@ -177,6 +206,15 @@ export function CaptureWorkspace({
         </div>
         <div className="flex items-center gap-3">
           <StatusPill status={status} />
+          <button
+            onClick={autoCollect}
+            disabled={collecting || profiles.length === 0}
+            className="inline-flex items-center gap-1.5 border border-astblue-300 text-astblue-100 hover:bg-white/10 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
+            title={profiles.length === 0 ? 'No profiles on this screening' : 'Visit the candidate\'s public profiles and capture recent posts automatically'}
+          >
+            <Bot size={15} className={collecting ? 'animate-pulse' : ''} />
+            {collecting ? 'Collecting…' : 'Auto-collect'}
+          </button>
           <button
             onClick={() => runAnalysis(false)}
             disabled={analyzing || items.length === 0}
@@ -324,7 +362,13 @@ export function CaptureWorkspace({
                         source <ExternalLink size={10} />
                       </a>
                     )}
-                    <span className="ml-auto">{item.captured_by_name}</span>
+                    <span className="ml-auto inline-flex items-center gap-1">
+                      {item.source === 'auto' ? (
+                        <span className="inline-flex items-center gap-1 text-astblue-700"><Bot size={11} /> auto</span>
+                      ) : (
+                        item.captured_by_name
+                      )}
+                    </span>
                     <button
                       onClick={() => removeItem(item.id)}
                       className="text-gray-300 hover:text-red-500"
@@ -405,20 +449,40 @@ export function CaptureWorkspace({
               </p>
             )}
             <ul className="space-y-2">
-              {profiles.map((p) => (
-                <li key={p.id} className="text-sm">
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-2 border border-gray-100 hover:border-astblue-300 rounded-lg px-3 py-2 transition-colors"
-                  >
-                    <span className="font-medium text-gray-700 w-24 shrink-0">{p.platform}</span>
-                    <span className="text-astblue-700 truncate flex-1">{p.url}</span>
-                    <ExternalLink size={12} className="text-gray-300 shrink-0" />
-                  </a>
-                </li>
-              ))}
+              {profiles.map((p) => {
+                const run = lastRun?.results?.find((r: any) => r.url === p.url)
+                return (
+                  <li key={p.id} className="text-sm">
+                    <a
+                      href={p.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 border border-gray-100 hover:border-astblue-300 rounded-lg px-3 py-2 transition-colors"
+                    >
+                      <span className="font-medium text-gray-700 w-24 shrink-0">{p.platform}</span>
+                      <span className="text-astblue-700 truncate flex-1">{p.url}</span>
+                      <ExternalLink size={12} className="text-gray-300 shrink-0" />
+                    </a>
+                    {run && (
+                      <div
+                        className={
+                          'mt-1 text-xs px-3 ' +
+                          (run.status === 'collected'
+                            ? 'text-astblue-700'
+                            : run.status === 'walled'
+                              ? 'text-amber-700'
+                              : 'text-gray-400')
+                        }
+                      >
+                        {run.status === 'collected' && `✓ auto-collected ${run.items} — ${run.note}`}
+                        {run.status === 'walled' && `⚠ ${run.note}`}
+                        {run.status === 'empty' && run.note}
+                        {run.status === 'error' && `✗ ${run.note}`}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           </section>
 

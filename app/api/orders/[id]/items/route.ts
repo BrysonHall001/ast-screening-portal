@@ -17,7 +17,7 @@ export async function GET(
   }
   const id = Number(params.id)
   const items = await sql`
-    SELECT ci.id, ci.order_id, ci.platform, ci.url, ci.posted_at,
+    SELECT ci.id, ci.order_id, ci.source, ci.platform, ci.url, ci.posted_at,
            ci.content_text, (ci.image IS NOT NULL) AS has_image, ci.image_mime,
            ci.captured_by, u.full_name AS captured_by_name, ci.created_at,
            a.flags, a.suppressed, a.suppression_reason, a.model,

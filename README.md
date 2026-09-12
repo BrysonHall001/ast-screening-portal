@@ -67,6 +67,24 @@ and is barred from ever reaching a report. AI results are recommendations:
 Phase 3's review queue is where a human confirms or rejects every flag
 before anything is delivered.
 
+**Phase 6 (included): automated collection.** When a candidate finishes
+consent, the system automatically visits every profile they authorized (as
+a logged-out member of the public — no credentials, ever), captures recent
+posts within the lookback window including their images, and runs AI
+analysis over everything. The analyst opens the review queue and finds the
+work already done. An **Auto-collect** button in the capture workspace
+re-runs it any time.
+
+Straight talk about platform walls, because your clients will ask: Reddit,
+YouTube, blogs, and most public sites collect well. TikTok sometimes.
+Facebook, Instagram, and X show logged-out visitors almost nothing by
+deliberate platform design — every screening company on earth faces this.
+The per-profile status in the capture workspace says exactly what happened
+("auto-collected 14 posts" vs "login wall — capture manually"), and the
+manual capture tools cover the gap. The collector never logs in, never
+solves CAPTCHAs, and never scrapes around a wall: that line is what keeps
+the product defensible.
+
 **Phase 3 (included): the review queue.** From a screening in analysis/review,
 open **Review queue**. Every AI flag is a checkbox the analyst keeps or
 rejects; missed flags can be added; images can be marked for redaction; a

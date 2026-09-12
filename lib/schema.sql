@@ -179,3 +179,21 @@ CREATE TABLE IF NOT EXISTS disputes (
   resolved_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS disputes_order_idx ON disputes(order_id);
+
+-- ===================== Phase 6: automated collection =====================
+
+-- Where each content item came from: an analyst's manual capture or the
+-- automated collector.
+ALTER TABLE content_items ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'manual';
+
+-- One row per automated collection run, with a per-profile result log the
+-- UI surfaces (collected N / login-walled / error).
+CREATE TABLE IF NOT EXISTS collection_runs (
+  id           SERIAL PRIMARY KEY,
+  order_id     INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  triggered_by TEXT NOT NULL,
+  results      JSONB NOT NULL DEFAULT '[]',
+  started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  finished_at  TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS collection_runs_order_idx ON collection_runs(order_id);

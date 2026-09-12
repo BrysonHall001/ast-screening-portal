@@ -14,6 +14,8 @@ import {
   consentDoneAdminEmail,
   sendMail,
 } from '@/lib/email'
+import { collectForOrder } from '@/lib/collect'
+import { runAnalysis } from '@/lib/runAnalysis'
 
 // No auth here — the high-entropy token IS the credential. Everything is
 // keyed strictly to the one order that owns the token.
@@ -165,6 +167,17 @@ export async function POST(
     for (const a of admins) {
       await sendMail({ to: a.email, ...notice })
     }
+
+    // Kick off automated collection + analysis in the background. The
+    // candidate's response doesn't wait on it; failures are logged and the
+    // analyst can re-run from the capture workspace.
+    collectForOrder(order.id, 'system:auto')
+      .then((results) => {
+        const collected = results.reduce((a, r) => a + r.items, 0)
+        if (collected > 0) return runAnalysis(order.id, 'system:auto')
+      })
+      .catch((err) => console.error(`Auto-collection failed for order ${order.id}:`, err))
+
     return NextResponse.json({ ok: true })
   }
 
