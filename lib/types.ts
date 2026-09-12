@@ -78,3 +78,34 @@ export interface AuditEntry {
   detail: any
   created_at: string
 }
+
+export interface ContentItem {
+  id: number
+  order_id: number
+  platform: string
+  url: string | null
+  posted_at: string | null
+  content_text: string | null
+  has_image?: boolean
+  image_mime: string | null
+  captured_by: number | null
+  captured_by_name?: string
+  created_at: string
+}
+
+export interface AnalysisFlag {
+  category: string
+  confidence: number
+  rationale: string
+}
+
+export interface Analysis {
+  id: number
+  content_item_id: number
+  flags: AnalysisFlag[]
+  suppressed: boolean
+  suppression_reason: string | null
+  model: string | null
+  error: string | null
+  analyzed_at: string
+}

@@ -48,3 +48,38 @@ export const FCRA_SUMMARY_OF_RIGHTS_URL =
 
 // Shown at the bottom of the profiles step.
 export const PROFILES_STEP_NOTE = `Providing your account links is voluntary and helps ensure the report reviews the right person's content. Only publicly visible content on the accounts you list (and public accounts reasonably matched to your identifying information) will be reviewed. Never share passwords — we will never ask for them.`
+
+// ---------------------------------------------------------------------------
+// Report + adverse action text (Phases 4-5). Same rule as above: placeholder
+// language, structurally correct — swap for counsel-approved wording.
+// ---------------------------------------------------------------------------
+
+export const REPORT_COVER_NOTICE = `This consumer report was prepared by ${COMPANY_NAME} for employment purposes only, at the request of the end user identified on this cover page. It contains a review of publicly available social media and internet content only. No private accounts, private messages, or password-protected content were accessed.
+
+This report excludes, by policy and by system design, information concerning race, color, religion, national origin, age, sex, sexual orientation, gender identity, disability, medical condition, pregnancy, genetic information, and lawful union activity.
+
+NOTICE TO END USER: Before taking any adverse action based in whole or in part on this report, you must provide the consumer a copy of this report and the CFPB's "Summary of Your Rights Under the Fair Credit Reporting Act," and allow a reasonable period before taking final action. ${COMPANY_NAME} did not make, and cannot advise on, any employment decision. Use of this report is subject to your certifications under FCRA section 604(b).`
+
+export const PRE_ADVERSE_EMAIL_TEXT = (candidateName: string, reportLink: string) => `Dear ${candidateName},
+
+The employer that requested your pre-employment screening is considering an action that may be based, in whole or in part, on information in the enclosed consumer report prepared by ${COMPANY_NAME}.
+
+No final decision has been made. Before any final decision, you have the right to review the report and to dispute any information in it that you believe is inaccurate or incomplete.
+
+Your report: ${reportLink}
+Summary of Your Rights Under the FCRA: ${FCRA_SUMMARY_OF_RIGHTS_URL}
+
+To dispute any information in this report, reply to this email or contact ${COMPANY_NAME}. We will reinvestigate free of charge, generally within 30 days.
+
+${COMPANY_NAME} is a consumer reporting agency. It did not make the employment decision and cannot explain the reasons for it.`
+
+export const ADVERSE_EMAIL_TEXT = (candidateName: string, reportLink: string) => `Dear ${candidateName},
+
+This notice is to inform you that an adverse employment action has been taken based, in whole or in part, on information in a consumer report prepared by ${COMPANY_NAME}.
+
+${COMPANY_NAME}, as a consumer reporting agency, did not make this decision and is unable to provide you the specific reasons for it. Decisions were made solely by the employer.
+
+You have the right to obtain a free copy of your report from ${COMPANY_NAME} within 60 days: ${reportLink}
+You have the right to dispute directly with ${COMPANY_NAME} the accuracy or completeness of any information in the report. To do so, reply to this email.
+
+Summary of Your Rights Under the FCRA: ${FCRA_SUMMARY_OF_RIGHTS_URL}`

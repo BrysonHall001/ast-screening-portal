@@ -17,10 +17,12 @@ export default async function OrderPage({
   if (!Number.isFinite(id)) notFound()
 
   const orders = (await sql`
-    SELECT o.*, c.name AS client_name, u.full_name AS created_by_name
+    SELECT o.*, c.name AS client_name, c.contact_email, u.full_name AS created_by_name,
+           su.full_name AS signed_off_by_name
     FROM orders o
     JOIN clients c ON c.id = o.client_id
     LEFT JOIN users u ON u.id = o.created_by
+    LEFT JOIN users su ON su.id = o.signed_off_by
     WHERE o.id = ${id}
   `) as any[]
   if (!orders[0]) notFound()
@@ -32,6 +34,21 @@ export default async function OrderPage({
   const auditRows = (await sql`
     SELECT * FROM audit_log WHERE order_id = ${id} ORDER BY created_at DESC LIMIT 100
   `) as any[]
+  const itemCount = ((await sql`
+    SELECT COUNT(*)::int AS n FROM content_items WHERE order_id = ${id}
+  `) as any[])[0].n
+  const reports = (await sql`
+    SELECT r.id, r.version, r.generated_at, r.delivered_to, r.delivered_at,
+           u.full_name AS generated_by_name
+    FROM reports r LEFT JOIN users u ON u.id = r.generated_by
+    WHERE r.order_id = ${id} ORDER BY r.version DESC
+  `) as any[]
+  const adverse = ((await sql`
+    SELECT * FROM adverse_actions WHERE order_id = ${id}
+  `) as any[])[0] ?? null
+  const disputes = (await sql`
+    SELECT * FROM disputes WHERE order_id = ${id} ORDER BY opened_at DESC
+  `) as any[]
 
   return (
     <PortalShell userName={user.full_name} userRole={user.role}>
@@ -42,6 +59,11 @@ export default async function OrderPage({
             consent: consents[0] ?? null,
             profiles,
             audit: auditRows,
+            itemCount,
+            reports,
+            adverse,
+            disputes,
+            isAdmin: user.role === 'admin',
           })
         )}
       />

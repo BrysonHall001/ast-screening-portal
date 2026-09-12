@@ -87,3 +87,95 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS audit_log_order_idx ON audit_log(order_id);
+
+-- ===================== Phase 2: capture + analysis =====================
+-- (New tables are added automatically on boot — existing databases pick
+-- these up with zero manual steps.)
+
+-- A captured piece of content: a post, comment, or image an analyst
+-- collected from one of the candidate's public profiles.
+CREATE TABLE IF NOT EXISTS content_items (
+  id           SERIAL PRIMARY KEY,
+  order_id     INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  platform     TEXT NOT NULL,
+  url          TEXT,
+  posted_at    DATE,
+  content_text TEXT,
+  image        BYTEA,
+  image_mime   TEXT,
+  captured_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS content_items_order_idx ON content_items(order_id);
+
+-- AI analysis of one content item. One row per item; re-running analysis
+-- overwrites it. `suppressed` items contain protected-class information
+-- and are barred from ever reaching a report.
+CREATE TABLE IF NOT EXISTS analyses (
+  id                 SERIAL PRIMARY KEY,
+  content_item_id    INTEGER NOT NULL UNIQUE REFERENCES content_items(id) ON DELETE CASCADE,
+  flags              JSONB NOT NULL DEFAULT '[]',
+  suppressed         BOOLEAN NOT NULL DEFAULT FALSE,
+  suppression_reason TEXT,
+  model              TEXT,
+  error              TEXT,
+  analyzed_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ===================== Phase 3: human review =====================
+
+-- Review columns on analyses: final_flags is the analyst-approved truth
+-- (NULL = not reviewed yet; [] = reviewed clean). Reports are built from
+-- final_flags ONLY — raw AI output never reaches a report.
+ALTER TABLE analyses ADD COLUMN IF NOT EXISTS final_flags JSONB;
+ALTER TABLE analyses ADD COLUMN IF NOT EXISTS reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE analyses ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
+ALTER TABLE analyses ADD COLUMN IF NOT EXISTS reviewer_note TEXT;
+ALTER TABLE analyses ADD COLUMN IF NOT EXISTS redact_image BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS signed_off_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS signed_off_at TIMESTAMPTZ;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS purged_at TIMESTAMPTZ;
+
+-- ===================== Phase 4: reports =====================
+
+-- A generated report is immutable: the exact PDF delivered is stored.
+-- share_token = client access link; candidate_token = candidate's copy
+-- (used for wants_copy and adverse action).
+CREATE TABLE IF NOT EXISTS reports (
+  id              SERIAL PRIMARY KEY,
+  order_id        INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  version         INTEGER NOT NULL DEFAULT 1,
+  pdf             BYTEA NOT NULL,
+  share_token     TEXT UNIQUE NOT NULL,
+  candidate_token TEXT UNIQUE NOT NULL,
+  generated_by    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  generated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  delivered_to    TEXT,
+  delivered_at    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS reports_order_idx ON reports(order_id);
+
+-- ===================== Phase 5: adverse action + disputes =====================
+
+CREATE TABLE IF NOT EXISTS adverse_actions (
+  id                  SERIAL PRIMARY KEY,
+  order_id            INTEGER NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+  pre_adverse_sent_at TIMESTAMPTZ,
+  pre_adverse_sent_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  adverse_sent_at     TIMESTAMPTZ,
+  adverse_sent_by     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  note                TEXT
+);
+
+CREATE TABLE IF NOT EXISTS disputes (
+  id          SERIAL PRIMARY KEY,
+  order_id    INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  status      TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','resolved')),
+  resolution  TEXT,
+  opened_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  opened_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS disputes_order_idx ON disputes(order_id);

@@ -103,3 +103,49 @@ They provided ${opts.profileCount} social media profile link${opts.profileCount 
 Order: ${appUrl()}/admin/orders/${opts.orderId}`,
   }
 }
+
+export function reportDeliveryEmail(opts: {
+  clientName: string
+  candidateName: string
+  link: string
+}) {
+  return {
+    subject: `Screening report ready: ${opts.candidateName}`,
+    text: `The social media screening report for ${opts.candidateName} is ready.
+
+View / download (keep this link confidential): ${opts.link}
+
+REMINDER — before taking any adverse action based on this report, federal law requires that the candidate first receive a copy of the report and a summary of their FCRA rights, with a reasonable waiting period before a final decision. The screening portal can send both notices for you.
+
+All-Star Talent`,
+  }
+}
+
+export function disputeAckEmail(opts: { candidateName: string }) {
+  return {
+    subject: 'We received your dispute',
+    text: `Hi ${opts.candidateName},
+
+We've received your dispute regarding your screening report and have opened a reinvestigation. We will review the disputed information free of charge and respond with the results, generally within 30 days.
+
+All-Star Talent`,
+  }
+}
+
+export function disputeResolvedEmail(opts: {
+  candidateName: string
+  resolution: string
+}) {
+  return {
+    subject: 'Your dispute has been resolved',
+    text: `Hi ${opts.candidateName},
+
+Our reinvestigation of your dispute is complete. Result:
+
+${opts.resolution}
+
+If the report was corrected, an updated copy is available via your original report link. If you disagree with the outcome, you may add a brief statement of dispute to your file by replying to this email.
+
+All-Star Talent`,
+  }
+}

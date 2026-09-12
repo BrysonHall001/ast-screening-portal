@@ -5,18 +5,24 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Copy, Mail, XCircle, Plus, Trash2, FileSignature,
-  ExternalLink, ScrollText,
+  ExternalLink, ScrollText, Camera,
 } from 'lucide-react'
 import { StatusPill } from '@/components/StatusPill'
+import { DeliveryPanel } from './DeliveryPanel'
 import { CategoryToggles } from '@/components/CategoryToggles'
 import { normalizeCategories } from '@/lib/categories'
 import type { Order, Consent, CandidateProfile, AuditEntry } from '@/lib/types'
 
 interface Bundle {
-  order: Order
+  order: Order & { contact_email?: string | null; purged_at?: string | null }
   consent: Consent | null
   profiles: CandidateProfile[]
   audit: AuditEntry[]
+  itemCount: number
+  reports: any[]
+  adverse: any
+  disputes: any[]
+  isAdmin: boolean
 }
 
 function fmt(ts: string | null | undefined) {
@@ -29,7 +35,7 @@ function fmt(ts: string | null | undefined) {
 
 export function OrderDetail({ initial }: { initial: Bundle }) {
   const router = useRouter()
-  const { order, consent, profiles, audit } = initial
+  const { order, consent, profiles, audit, itemCount, reports, adverse, disputes, isAdmin } = initial
   const [busy, setBusy] = useState('')
   const [flash, setFlash] = useState('')
   const [newPlatform, setNewPlatform] = useState('Facebook')
@@ -252,11 +258,29 @@ export function OrderDetail({ initial }: { initial: Bundle }) {
                   </button>
                 </>
               )}
-              {order.status === 'consent_completed' && (
-                <div className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg p-3">
-                  Consent is complete. Content collection and analysis arrive in
-                  Phase 2 — this screening is ready for it.
-                </div>
+              {['consent_completed', 'collecting', 'analysis', 'in_review'].includes(order.status) && (
+                <Link
+                  href={`/admin/orders/${order.id}/capture`}
+                  className="w-full inline-flex items-center justify-center gap-2 bg-astblue-600 hover:bg-astblue-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                >
+                  <Camera size={15} /> Capture workspace{itemCount > 0 ? ` (${itemCount})` : ''}
+                </Link>
+              )}
+              {['analysis', 'in_review'].includes(order.status) && (
+                <Link
+                  href={`/admin/orders/${order.id}/review`}
+                  className="w-full inline-flex items-center justify-center gap-2 border border-astblue-300 text-astblue-800 hover:bg-astblue-50 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                >
+                  Review queue
+                </Link>
+              )}
+              {['report_ready', 'delivered'].includes(order.status) && (
+                <Link
+                  href={`/admin/orders/${order.id}/review`}
+                  className="w-full inline-flex items-center justify-center gap-2 border border-gray-200 text-gray-600 hover:border-astblue-300 rounded-lg px-4 py-2 text-sm transition-colors"
+                >
+                  View locked review
+                </Link>
               )}
               {order.status !== 'cancelled' && (
                 <button
@@ -273,6 +297,15 @@ export function OrderDetail({ initial }: { initial: Bundle }) {
               )}
             </div>
           </section>
+
+          <DeliveryPanel
+            order={order as any}
+            isAdmin={isAdmin}
+            contactEmail={order.contact_email || null}
+            reports={reports}
+            adverse={adverse}
+            disputes={disputes}
+          />
 
           <section className="bg-white rounded-xl shadow-card p-5">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-3">

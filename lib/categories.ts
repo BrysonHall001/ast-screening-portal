@@ -129,3 +129,9 @@ export function normalizeCategories(
   }
   return out
 }
+
+// Display labels for flag chips, including the special 'keywords' flag the
+// analyzer can return when client-specific keywords match.
+export const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
+  CATEGORIES.map((c) => [c.key, c.label]).concat([['keywords', 'Keyword match']])
+)

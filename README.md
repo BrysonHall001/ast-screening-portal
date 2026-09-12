@@ -46,8 +46,61 @@ Everything else can be tested freely with fake candidates in the meantime.
 - **Category controls with guardrails** — Politics and Self-harm are OFF by
   default and show a legal warning when someone switches them on
 
-Phases 2+ (content capture, AI analysis with protected-class suppression,
-review queue, the PDF report, adverse-action tools) build on this foundation.
+**Phase 2 (now included):** once consent completes, the screening page grows
+an **Open capture workspace** button. There the analyst:
+
+- Opens the candidate's listed profiles (public content only — the rules are
+  pinned in the sidebar)
+- Captures posts: platform, link, date, text, and a screenshot (stored in
+  the database, max 5 MB each)
+- Hits **Analyze** — the AI (OpenAI) reviews each item, including images,
+  against ONLY the categories enabled for that screening, plus any client
+  keywords
+- Gets back per-item flags with confidence and a one-line rationale, chips
+  colored by severity
+
+The suppression filter runs on every item: anything whose real content is a
+protected characteristic (race, religion, health, disability, sexual
+orientation, pregnancy, union activity — or politics/self-harm when those
+are disabled) gets marked **Suppressed**, shows greyed-out to the analyst,
+and is barred from ever reaching a report. AI results are recommendations:
+Phase 3's review queue is where a human confirms or rejects every flag
+before anything is delivered.
+
+**Phase 3 (included): the review queue.** From a screening in analysis/review,
+open **Review queue**. Every AI flag is a checkbox the analyst keeps or
+rejects; missed flags can be added; images can be marked for redaction; a
+reviewer note travels into the report. Suppressed items sit in a collapsed
+section — visible for quality control, never reviewable into a report (a
+mistaken suppression can be restored, and that override is audited). When
+every item is reviewed, **Sign off review** locks everything and flips the
+screening to Report Ready. Reports are built from the human decisions only —
+raw AI output cannot reach one.
+
+**Phase 4 (included): the report.** One click generates a professional PDF —
+branded cover with the legal notices, screening summary with the consent
+record, a behavioral composition chart, one page per flagged item (category
+chips, the post, the image — pixelated if marked redacted — and the analyst
+findings), and a consumer-rights appendix. Reports are versioned and stored
+immutably; **Preview PDF** shows exactly what the client gets. **Deliver**
+emails the client a confidential link (with the FCRA adverse-action reminder
+built into the email), flips the screening to Delivered, and — if the
+candidate checked "send me a copy" at consent — automatically sends the
+candidate their own copy on a separate private link.
+
+**Phase 5 (included): the legal tail.** On a delivered screening:
+
+- **Adverse action** — the FCRA two-step, enforced in order: pre-adverse
+  notice (report copy + rights) first, final notice second, with a business-
+  day counter and a warning if you try to finalize before 5 days or while a
+  dispute is open.
+- **Disputes** — log what the candidate disputes (they get an automatic
+  acknowledgment), watch the 30-day reinvestigation countdown, record the
+  resolution (they get that too). If the report changes, regenerate — every
+  previously-sent link always serves the newest version.
+- **Retention** — admin-only purge for closed screenings: deletes captured
+  content, images, and report PDFs; keeps the consent record and audit trail
+  as proof the screening was lawful.
 
 ---
 
@@ -83,6 +136,7 @@ do, then run the push command from the chat.
    | `DATABASE_URL` | the Internal Database URL from Step 1 |
    | `SESSION_SECRET` | any long random string (30+ characters, mash the keyboard) |
    | `APP_URL` | your Render URL, e.g. `https://ast-screening-portal.onrender.com` (add it after the first deploy) |
+   | `OPENAI_API_KEY` | from [platform.openai.com](https://platform.openai.com/api-keys) — powers the AI analysis. Without it, everything works except the Analyze button. Optional: `OPENAI_MODEL` to override the default model. |
 
 4. Deploy. After it's live, set `APP_URL` to the real URL and redeploy —
    consent links in emails use it.
@@ -137,6 +191,7 @@ passwords all work):
 | `app/consent/[token]/` | The candidate consent flow |
 | `app/admin/` | Everything staff sees |
 | `lib/email.ts` | Email wording |
+| `lib/analyze.ts` | The AI analysis prompt + suppression rules |
 
 ---
 
