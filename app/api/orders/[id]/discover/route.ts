@@ -17,7 +17,11 @@ export async function POST(
   }
   try {
     const suggestions = await discoverForOrder(Number(params.id), user.email)
-    return NextResponse.json({ suggestions })
+    const note =
+      suggestions.length === 0 && !process.env.BRAVE_SEARCH_API_KEY
+        ? 'No results — note: without a BRAVE_SEARCH_API_KEY, discovery relies on a free search endpoint that often blocks requests from cloud servers. Add the (free) Brave key in your environment for reliable discovery.'
+        : null
+    return NextResponse.json({ suggestions, note })
   } catch (err: any) {
     return NextResponse.json({ error: String(err?.message || err) }, { status: 400 })
   }

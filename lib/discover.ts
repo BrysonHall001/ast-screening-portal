@@ -87,6 +87,54 @@ export function parseDdgHtml(html: string): SearchHit[] {
   return hits
 }
 
+// ---------------- Brave Search API (reliable from server IPs) ----------------
+
+export function parseBraveResults(json: any): SearchHit[] {
+  const results = json?.web?.results || []
+  return results
+    .filter((r: any) => typeof r?.url === 'string')
+    .map((r: any) => ({
+      title: String(r.title || ''),
+      url: String(r.url),
+      snippet: String(r.description || '').replace(/<[^>]+>/g, ''),
+    }))
+}
+
+async function braveSearch(query: string): Promise<SearchHit[]> {
+  const key = process.env.BRAVE_SEARCH_API_KEY
+  if (!key) return []
+  try {
+    const base = (process.env.BRAVE_SEARCH_BASE || 'https://api.search.brave.com').replace(/\/$/, '')
+    const res = await fetchWithTimeout2(
+      `${base}/res/v1/web/search?q=${encodeURIComponent(query)}&count=8`,
+      { 'X-Subscription-Token': key, Accept: 'application/json' }
+    )
+    if (!res.ok) return []
+    return parseBraveResults(await res.json()).slice(0, 8)
+  } catch {
+    return []
+  }
+}
+
+async function fetchWithTimeout2(url: string, headers: Record<string, string>): Promise<Response> {
+  const ctl = new AbortController()
+  const t = setTimeout(() => ctl.abort(), TIMEOUT_MS)
+  try {
+    return await fetch(url, { signal: ctl.signal, headers: { 'User-Agent': UA, ...headers } })
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+// Provider selection: Brave when a key is configured (works reliably from
+// datacenter IPs like Render's), DuckDuckGo's HTML endpoint otherwise
+// (fine from residential IPs, often BLOCKED from cloud servers — which is
+// why the Brave key matters in production).
+async function searchWeb(query: string): Promise<SearchHit[]> {
+  if (process.env.BRAVE_SEARCH_API_KEY) return braveSearch(query)
+  return ddgSearch(query)
+}
+
 async function ddgSearch(query: string): Promise<SearchHit[]> {
   try {
     const res = await fetchWithTimeout(
@@ -226,7 +274,33 @@ async function probeHandles(emailLocal: string): Promise<Suggestion[]> {
 
 // ---------------- Orchestration ----------------
 
+const DISCOVERY_MAX_MS = 120000
+
 export async function discoverForOrder(
+  orderId: number,
+  actor: string
+): Promise<Suggestion[]> {
+  // Watchdog wrapper: whatever happens inside, the run ends with either
+  // discovery.finished or discovery.failed in the audit log — never silence.
+  let timer: any
+  try {
+    return await Promise.race([
+      discoverForOrderInner(orderId, actor),
+      new Promise<never>((_, rej) => {
+        timer = setTimeout(() => rej(new Error('discovery timed out after 120s')), DISCOVERY_MAX_MS)
+      }),
+    ])
+  } catch (err: any) {
+    await audit(actor, 'discovery.failed', orderId, {
+      error: String(err?.message || err).slice(0, 300),
+    })
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function discoverForOrderInner(
   orderId: number,
   actor: string
 ): Promise<Suggestion[]> {
@@ -260,7 +334,7 @@ export async function discoverForOrder(
 
   const byUrl = new Map<string, Suggestion>()
   for (const q of queries) {
-    const hits = await ddgSearch(q)
+    const hits = await searchWeb(q)
     for (const hit of hits) {
       if (!looksLikeProfileUrl(hit.url)) continue
       const { score, evidence } = scoreHit(hit, nameTokens, emailLocal, location)

@@ -156,7 +156,7 @@ export function CaptureWorkspace({
       setFlash(
         data.suggestions.length
           ? `Discovery found ${data.suggestions.length} possible profile${data.suggestions.length === 1 ? '' : 's'} — confirm the ones that are really this candidate.`
-          : 'Discovery found no additional likely profiles.'
+          : data.note || 'Discovery found no additional likely profiles.'
       )
       load()
     } else {

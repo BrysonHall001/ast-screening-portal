@@ -166,6 +166,7 @@ do, then run the push command from the chat.
    | `DATABASE_URL` | the Internal Database URL from Step 1 |
    | `SESSION_SECRET` | any long random string (30+ characters, mash the keyboard) |
    | `APP_URL` | your Render URL, e.g. `https://ast-screening-portal.onrender.com` (add it after the first deploy) |
+   | `BRAVE_SEARCH_API_KEY` | free key from [brave.com/search/api](https://brave.com/search/api/) — makes profile discovery reliable in production. Without it, discovery falls back to a free endpoint that cloud hosts like Render are often blocked from. |
    | `OPENAI_API_KEY` | from [platform.openai.com](https://platform.openai.com/api-keys) — powers the AI analysis. Without it, everything works except the Analyze button. Optional: `OPENAI_MODEL` to override the default model. |
 
 4. Deploy. After it's live, set `APP_URL` to the real URL and redeploy —
