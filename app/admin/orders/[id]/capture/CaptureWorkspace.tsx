@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft, Plus, Trash2, ExternalLink, Sparkles, ShieldOff,
-  ImageIcon, AlertCircle, RefreshCw, Bot,
+  ImageIcon, AlertCircle, RefreshCw, Bot, Search, Check, X,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { StatusPill } from '@/components/StatusPill'
@@ -66,6 +66,10 @@ export function CaptureWorkspace({
   const [analyzing, setAnalyzing] = useState(false)
   const [collecting, setCollecting] = useState(false)
   const [lastRun, setLastRun] = useState<any | null>(null)
+  const [suggestions, setSuggestions] = useState<any[]>([])
+  const [discovering, setDiscovering] = useState(false)
+  const [deciding, setDeciding] = useState(0)
+  const [liveProfiles, setLiveProfiles] = useState(profiles)
 
   // Add form state
   const [showAdd, setShowAdd] = useState(false)
@@ -89,6 +93,11 @@ export function CaptureWorkspace({
     if (runsRes.ok) {
       const runsData = await runsRes.json()
       setLastRun(runsData.runs?.[0] || null)
+    }
+    const discRes = await fetch(`/api/orders/${order.id}/discover`)
+    if (discRes.ok) {
+      const discData = await discRes.json()
+      setSuggestions(discData.suggestions || [])
     }
     setLoading(false)
   }, [order.id])
@@ -135,6 +144,42 @@ export function CaptureWorkspace({
     if (!confirm('Delete this captured item?')) return
     await fetch(`/api/items/${id}`, { method: 'DELETE' })
     load()
+  }
+
+  async function discover() {
+    setDiscovering(true)
+    setFlash('')
+    const res = await fetch(`/api/orders/${order.id}/discover`, { method: 'POST' })
+    setDiscovering(false)
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) {
+      setFlash(
+        data.suggestions.length
+          ? `Discovery found ${data.suggestions.length} possible profile${data.suggestions.length === 1 ? '' : 's'} — confirm the ones that are really this candidate.`
+          : 'Discovery found no additional likely profiles.'
+      )
+      load()
+    } else {
+      setFlash(data.error || 'Discovery failed')
+    }
+  }
+
+  async function decideSuggestion(id: number, action: 'confirm' | 'reject') {
+    setDeciding(id)
+    const res = await fetch(`/api/discovered/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    setDeciding(0)
+    if (res.ok) {
+      if (action === 'confirm') {
+        const s = suggestions.find((x) => x.id === id)
+        if (s) setLiveProfiles([...liveProfiles, { id: -id, order_id: order.id, platform: s.platform, url: s.url, added_by: 'analyst', created_at: '' } as any])
+        setFlash('Profile confirmed and attached — run Auto-collect to gather its content.')
+      }
+      load()
+    }
   }
 
   async function autoCollect() {
@@ -208,9 +253,9 @@ export function CaptureWorkspace({
           <StatusPill status={status} />
           <button
             onClick={autoCollect}
-            disabled={collecting || profiles.length === 0}
+            disabled={collecting || liveProfiles.length === 0}
             className="inline-flex items-center gap-1.5 border border-astblue-300 text-astblue-100 hover:bg-white/10 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50"
-            title={profiles.length === 0 ? 'No profiles on this screening' : 'Visit the candidate\'s public profiles and capture recent posts automatically'}
+            title={liveProfiles.length === 0 ? 'No profiles on this screening' : 'Visit the candidate\'s public profiles and capture recent posts automatically'}
           >
             <Bot size={15} className={collecting ? 'animate-pulse' : ''} />
             {collecting ? 'Collecting…' : 'Auto-collect'}
@@ -442,14 +487,14 @@ export function CaptureWorkspace({
             <h2 className="text-sm font-semibold text-gray-800 mb-3">
               Profiles to review
             </h2>
-            {profiles.length === 0 && (
+            {liveProfiles.length === 0 && (
               <p className="text-sm text-gray-400">
-                The candidate didn&apos;t list any. Add analyst-verified profiles from
-                the screening page.
+                The candidate didn&apos;t list any — run Discover below, or add
+                analyst-verified profiles from the screening page.
               </p>
             )}
             <ul className="space-y-2">
-              {profiles.map((p) => {
+              {liveProfiles.map((p) => {
                 const run = lastRun?.results?.find((r: any) => r.url === p.url)
                 return (
                   <li key={p.id} className="text-sm">
@@ -483,6 +528,59 @@ export function CaptureWorkspace({
                   </li>
                 )
               })}
+            </ul>
+          </section>
+
+          <section className="bg-white rounded-xl shadow-card p-5">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-sm font-semibold text-gray-800">Discovered profiles</h2>
+              <button
+                onClick={discover}
+                disabled={discovering}
+                className="inline-flex items-center gap-1 text-xs text-astblue-700 hover:underline disabled:opacity-50"
+              >
+                <Search size={12} className={discovering ? 'animate-pulse' : ''} />
+                {discovering ? 'Searching…' : 'Discover'}
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Profiles the system found searching the candidate&apos;s name, email
+              handle, and location. <strong>Confirm only ones you&apos;re confident are
+              really this person</strong> — screening a same-named stranger is the
+              #1 accuracy failure in this industry.
+            </p>
+            {suggestions.filter((s) => s.status === 'suggested').length === 0 && (
+              <p className="text-xs text-gray-400">Nothing awaiting a decision.</p>
+            )}
+            <ul className="space-y-2">
+              {suggestions.filter((s) => s.status === 'suggested').map((s) => (
+                <li key={s.id} className="border border-gray-100 rounded-lg p-2.5 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-700">{s.platform}</span>
+                    <a href={s.url} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline truncate flex-1">
+                      {s.url}
+                    </a>
+                    <span className="text-gray-300">score {s.score}</span>
+                  </div>
+                  <p className="text-gray-500 mt-1">{s.evidence}</p>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => decideSuggestion(s.id, 'confirm')}
+                      disabled={deciding === s.id}
+                      className="inline-flex items-center gap-1 bg-astblue-600 hover:bg-astblue-700 text-white rounded-md px-2.5 py-1 disabled:opacity-50"
+                    >
+                      <Check size={11} /> This is them
+                    </button>
+                    <button
+                      onClick={() => decideSuggestion(s.id, 'reject')}
+                      disabled={deciding === s.id}
+                      className="inline-flex items-center gap-1 border border-gray-200 hover:border-red-300 hover:text-red-600 text-gray-500 rounded-md px-2.5 py-1 disabled:opacity-50"
+                    >
+                      <X size={11} /> Not them
+                    </button>
+                  </div>
+                </li>
+              ))}
             </ul>
           </section>
 

@@ -13,6 +13,7 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
   const [candidateName, setCandidateName] = useState('')
   const [candidateEmail, setCandidateEmail] = useState('')
   const [jobTitle, setJobTitle] = useState('')
+  const [candidateLocation, setCandidateLocation] = useState('')
   const [lookback, setLookback] = useState(7)
   const [categories, setCategories] = useState(normalizeCategories(null))
   const [sendNow, setSendNow] = useState(true)
@@ -42,6 +43,7 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
         client_id: clientId,
         candidate_name: candidateName,
         candidate_email: candidateEmail,
+        candidate_location: candidateLocation || null,
         job_title: jobTitle || null,
         lookback_years: lookback,
         categories,
@@ -108,7 +110,7 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Job title <span className="text-gray-400">(optional)</span>
@@ -116,6 +118,17 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
             <input
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-astblue-400"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              City / state <span className="text-gray-400">(optional — sharpens profile discovery)</span>
+            </label>
+            <input
+              value={candidateLocation}
+              onChange={(e) => setCandidateLocation(e.target.value)}
+              placeholder="e.g. Raleigh, NC"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-astblue-400"
             />
           </div>

@@ -16,6 +16,7 @@ import {
 } from '@/lib/email'
 import { collectForOrder } from '@/lib/collect'
 import { runAnalysis } from '@/lib/runAnalysis'
+import { discoverForOrder } from '@/lib/discover'
 
 // No auth here — the high-entropy token IS the credential. Everything is
 // keyed strictly to the one order that owns the token.
@@ -177,6 +178,10 @@ export async function POST(
         if (collected > 0) return runAnalysis(order.id, 'system:auto')
       })
       .catch((err) => console.error(`Auto-collection failed for order ${order.id}:`, err))
+      // Discovery runs regardless of what the candidate listed: it surfaces
+      // additional PROBABLE profiles as suggestions awaiting human confirm.
+      .then(() => discoverForOrder(order.id, 'system:auto'))
+      .catch((err) => console.error(`Auto-discovery failed for order ${order.id}:`, err))
 
     return NextResponse.json({ ok: true })
   }

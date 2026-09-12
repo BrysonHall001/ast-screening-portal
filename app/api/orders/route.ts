@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const body = await req.json().catch(() => ({}))
-  const { client_id, candidate_name, candidate_email, job_title, lookback_years, categories, send_now } = body
+  const { client_id, candidate_name, candidate_email, candidate_location, job_title, lookback_years, categories, send_now } = body
   if (!client_id || !candidate_name || !candidate_email) {
     return NextResponse.json(
       { error: 'Client, candidate name, and candidate email are required' },
@@ -47,11 +47,11 @@ export async function POST(req: NextRequest) {
   const status = send_now ? 'consent_sent' : 'draft'
   const rows = (await sql`
     INSERT INTO orders
-      (client_id, candidate_name, candidate_email, job_title, lookback_years,
-       categories, status, consent_token, consent_sent_at, created_by)
+      (client_id, candidate_name, candidate_email, candidate_location, job_title,
+       lookback_years, categories, status, consent_token, consent_sent_at, created_by)
     VALUES
-      (${client_id}, ${candidate_name}, ${candidate_email}, ${job_title || null},
-       ${lookback}, ${cats}, ${status}, ${token},
+      (${client_id}, ${candidate_name}, ${candidate_email}, ${candidate_location || null},
+       ${job_title || null}, ${lookback}, ${cats}, ${status}, ${token},
        ${send_now ? new Date().toISOString() : null}, ${user.id})
     RETURNING id
   `) as { id: number }[]

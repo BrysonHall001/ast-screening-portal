@@ -85,6 +85,18 @@ manual capture tools cover the gap. The collector never logs in, never
 solves CAPTCHAs, and never scrapes around a wall: that line is what keeps
 the product defensible.
 
+**Phase 7 (included): profile discovery.** The system also FINDS profiles on
+its own: after consent, it searches the web for the candidate's name (plus
+the optional city/state from the order form) across every major platform,
+and probes whether accounts matching their email handle exist. Matches show
+up in the capture workspace as **Discovered profiles** — each with the
+evidence for the match and a score. One click ("This is them" / "Not them")
+confirms or dismisses each; confirmed ones become collectable profiles and
+Auto-collect grabs their content. The confirm step is deliberate and
+non-negotiable: automatically screening a same-named stranger is the
+canonical FCRA accuracy lawsuit, and the one-click human match decision —
+audited, with who and when — is the defense.
+
 **Phase 3 (included): the review queue.** From a screening in analysis/review,
 open **Review queue**. Every AI flag is a checkbox the analyst keeps or
 rejects; missed flags can be added; images can be marked for redaction; a

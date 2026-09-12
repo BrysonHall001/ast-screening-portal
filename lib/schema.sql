@@ -197,3 +197,29 @@ CREATE TABLE IF NOT EXISTS collection_runs (
   finished_at  TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS collection_runs_order_idx ON collection_runs(order_id);
+
+-- ===================== Phase 7: profile discovery =====================
+
+-- Optional discovery hint captured at order time (city/state improves
+-- name-match precision).
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS candidate_location TEXT;
+
+-- Profiles the discovery engine THINKS belong to the candidate. They are
+-- suggestions only: a human must confirm one before it becomes a real
+-- candidate_profile and gets collected. Misattribution (screening a
+-- same-named stranger) is the classic FCRA accuracy failure — the confirm
+-- step is the defense.
+CREATE TABLE IF NOT EXISTS discovered_profiles (
+  id         SERIAL PRIMARY KEY,
+  order_id   INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  platform   TEXT NOT NULL,
+  url        TEXT NOT NULL,
+  evidence   TEXT NOT NULL,
+  score      INTEGER NOT NULL DEFAULT 0,
+  status     TEXT NOT NULL DEFAULT 'suggested' CHECK (status IN ('suggested','confirmed','rejected')),
+  decided_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  decided_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (order_id, url)
+);
+CREATE INDEX IF NOT EXISTS discovered_profiles_order_idx ON discovered_profiles(order_id);
