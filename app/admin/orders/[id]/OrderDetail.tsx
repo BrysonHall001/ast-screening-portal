@@ -19,6 +19,7 @@ interface Bundle {
   profiles: CandidateProfile[]
   audit: AuditEntry[]
   itemCount: number
+  discovered: any[]
   reports: any[]
   adverse: any
   disputes: any[]
@@ -35,7 +36,26 @@ function fmt(ts: string | null | undefined) {
 
 export function OrderDetail({ initial }: { initial: Bundle }) {
   const router = useRouter()
-  const { order, consent, profiles, audit, itemCount, reports, adverse, disputes, isAdmin } = initial
+  const { order, consent, profiles, audit, itemCount, discovered, reports, adverse, disputes, isAdmin } = initial
+  const [decidingId, setDecidingId] = useState(0)
+
+  async function decideDiscovered(id: number, action: 'confirm' | 'reject') {
+    setDecidingId(id)
+    const res = await fetch(`/api/discovered/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    setDecidingId(0)
+    if (res.ok) {
+      if (action === 'confirm') {
+        setFlash('Confirmed — collecting and analyzing that profile now. Refresh in ~30s to see results.')
+      }
+      router.refresh()
+    } else {
+      setFlash((await res.json().catch(() => ({}))).error || 'Failed')
+    }
+  }
   const [busy, setBusy] = useState('')
   const [flash, setFlash] = useState('')
   const [newPlatform, setNewPlatform] = useState('Facebook')
@@ -218,6 +238,50 @@ export function OrderDetail({ initial }: { initial: Bundle }) {
               </button>
             </div>
           </section>
+
+          {/* Discovered profiles awaiting a decision */}
+          {discovered.length > 0 && (
+            <section className="bg-white rounded-xl shadow-card p-5 border-2 border-astblue-300">
+              <h2 className="text-sm font-semibold text-gray-800 mb-1">
+                Discovered profiles — {discovered.length} awaiting your decision
+              </h2>
+              <p className="text-xs text-gray-500 mb-3">
+                The system found these searching the candidate&apos;s name, email
+                handle, and location. Confirm the ones that are really this
+                person; confirmed profiles are collected and analyzed automatically.
+              </p>
+              <ul className="space-y-2">
+                {discovered.map((s: any) => (
+                  <li key={s.id} className="border border-gray-100 rounded-lg p-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-700">{s.platform}</span>
+                      <a href={s.url} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline truncate flex-1">
+                        {s.url}
+                      </a>
+                      <span className="text-xs text-gray-300 shrink-0">score {s.score}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{s.evidence}</p>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => decideDiscovered(s.id, 'confirm')}
+                        disabled={decidingId === s.id}
+                        className="bg-astblue-600 hover:bg-astblue-700 text-white rounded-md px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                      >
+                        ✓ This is them — collect it
+                      </button>
+                      <button
+                        onClick={() => decideDiscovered(s.id, 'reject')}
+                        disabled={decidingId === s.id}
+                        className="border border-gray-200 hover:border-red-300 hover:text-red-600 text-gray-500 rounded-md px-3 py-1.5 text-xs disabled:opacity-50"
+                      >
+                        ✗ Not them
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Categories snapshot */}
           <section className="bg-white rounded-xl shadow-card p-5">

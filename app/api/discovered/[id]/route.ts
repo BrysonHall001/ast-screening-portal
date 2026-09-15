@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { audit } from '@/lib/audit'
+import { collectForOrder } from '@/lib/collect'
+import { runAnalysis } from '@/lib/runAnalysis'
 
 // The human decision on a discovered profile. Confirm attaches it as an
 // analyst-verified candidate_profile (collectable); reject buries it.
@@ -42,6 +44,13 @@ export async function POST(
     await audit(user.email, 'discovery.profile_confirmed', s.order_id, {
       url: s.url, score: s.score,
     })
+    // Confirmed → immediately collect and analyze in the background.
+    collectForOrder(s.order_id, 'system:auto')
+      .then((results) => {
+        const collected = results.reduce((a, r) => a + r.items, 0)
+        if (collected > 0) return runAnalysis(s.order_id, 'system:auto')
+      })
+      .catch((err) => console.error(`Post-confirm collection failed for order ${s.order_id}:`, err))
   } else {
     await audit(user.email, 'discovery.profile_rejected', s.order_id, { url: s.url })
   }

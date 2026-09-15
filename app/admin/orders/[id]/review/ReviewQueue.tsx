@@ -66,10 +66,24 @@ export function ReviewQueue({
       const d: Record<number, Draft> = {}
       for (const it of rows) {
         const kept: Record<number, boolean> = {}
-        ;(it.flags || []).forEach((_, i) => (kept[i] = true))
+        const added: AnalysisFlag[] = []
+        const ai = it.flags || []
+        if (it.reviewed_at && Array.isArray(it.final_flags)) {
+          // Rehydrate the saved decision: AI flags kept iff their category
+          // survived into final_flags; anything else in final_flags was
+          // reviewer-added.
+          const finalCats = new Set(it.final_flags.map((f: AnalysisFlag) => f.category))
+          ai.forEach((f: AnalysisFlag, i: number) => (kept[i] = finalCats.has(f.category)))
+          const aiCats = new Set(ai.map((f: AnalysisFlag) => f.category))
+          for (const f of it.final_flags) {
+            if (!aiCats.has(f.category)) added.push(f)
+          }
+        } else {
+          ai.forEach((_: AnalysisFlag, i: number) => (kept[i] = true))
+        }
         d[it.id] = {
           kept,
-          added: [],
+          added,
           note: it.reviewer_note || '',
           redact: it.redact_image || false,
           saving: false,

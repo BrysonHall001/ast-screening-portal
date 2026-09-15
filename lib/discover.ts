@@ -21,7 +21,7 @@ import { audit } from './audit'
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
-const TIMEOUT_MS = 12000
+const TIMEOUT_MS = 8000
 
 const SEARCH_BASE = () =>
   (process.env.DISCOVERY_SEARCH_BASE || 'https://html.duckduckgo.com').replace(/\/$/, '')
@@ -233,42 +233,26 @@ export function looksLikeProfileUrl(url: string): boolean {
 async function probeHandles(emailLocal: string): Promise<Suggestion[]> {
   if (emailLocal.length < 5) return []
   const out: Suggestion[] = []
-  // Reddit: public JSON 200 = exists
-  try {
-    const r = await fetchWithTimeout(`https://www.reddit.com/user/${emailLocal}/about.json`)
-    if (r.ok) {
-      out.push({
-        platform: 'Reddit',
-        url: `https://www.reddit.com/user/${emailLocal}`,
-        evidence: `a Reddit account named "${emailLocal}" (the candidate's email handle) exists`,
-        score: 3,
-      })
-    }
-  } catch { /* unreachable ≠ nonexistent */ }
-  // YouTube: @handle page 200 = exists
-  try {
-    const r = await fetchWithTimeout(`https://www.youtube.com/@${emailLocal}`)
-    if (r.ok) {
-      out.push({
-        platform: 'YouTube',
-        url: `https://www.youtube.com/@${emailLocal}`,
-        evidence: `a YouTube channel @${emailLocal} (the candidate's email handle) exists`,
-        score: 3,
-      })
-    }
-  } catch { /* skip */ }
-  // TikTok: @handle page 200 = likely exists
-  try {
-    const r = await fetchWithTimeout(`https://www.tiktok.com/@${emailLocal}`)
-    if (r.ok) {
-      out.push({
-        platform: 'TikTok',
-        url: `https://www.tiktok.com/@${emailLocal}`,
-        evidence: `a TikTok account @${emailLocal} (the candidate's email handle) exists`,
-        score: 2,
-      })
-    }
-  } catch { /* skip */ }
+  const probes: Promise<void>[] = []
+  probes.push((async () => {
+    try {
+      const r = await fetchWithTimeout(`https://www.reddit.com/user/${emailLocal}/about.json`)
+      if (r.ok) out.push({ platform: 'Reddit', url: `https://www.reddit.com/user/${emailLocal}`, evidence: `a Reddit account named "${emailLocal}" (the candidate's email handle) exists`, score: 3 })
+    } catch { /* unreachable ≠ nonexistent */ }
+  })())
+  probes.push((async () => {
+    try {
+      const r = await fetchWithTimeout(`https://www.youtube.com/@${emailLocal}`)
+      if (r.ok) out.push({ platform: 'YouTube', url: `https://www.youtube.com/@${emailLocal}`, evidence: `a YouTube channel @${emailLocal} (the candidate's email handle) exists`, score: 3 })
+    } catch { /* skip */ }
+  })())
+  probes.push((async () => {
+    try {
+      const r = await fetchWithTimeout(`https://www.tiktok.com/@${emailLocal}`)
+      if (r.ok) out.push({ platform: 'TikTok', url: `https://www.tiktok.com/@${emailLocal}`, evidence: `a TikTok account @${emailLocal} (the candidate's email handle) exists`, score: 2 })
+    } catch { /* skip */ }
+  })())
+  await Promise.all(probes)
   return out
 }
 

@@ -21,10 +21,13 @@ export async function GET(
            ci.content_text, (ci.image IS NOT NULL) AS has_image, ci.image_mime,
            ci.captured_by, u.full_name AS captured_by_name, ci.created_at,
            a.flags, a.suppressed, a.suppression_reason, a.model,
-           a.error AS analysis_error, a.analyzed_at
+           a.error AS analysis_error, a.analyzed_at,
+           a.final_flags, a.reviewed_at, a.reviewer_note, a.redact_image,
+           ru.full_name AS reviewed_by_name
     FROM content_items ci
     LEFT JOIN users u ON u.id = ci.captured_by
     LEFT JOIN analyses a ON a.content_item_id = ci.id
+    LEFT JOIN users ru ON ru.id = a.reviewed_by
     WHERE ci.order_id = ${id}
     ORDER BY ci.created_at DESC
   `

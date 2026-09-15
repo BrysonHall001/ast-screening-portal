@@ -49,6 +49,10 @@ export default async function OrderPage({
   const disputes = (await sql`
     SELECT * FROM disputes WHERE order_id = ${id} ORDER BY opened_at DESC
   `) as any[]
+  const discovered = (await sql`
+    SELECT * FROM discovered_profiles WHERE order_id = ${id} AND status = 'suggested'
+    ORDER BY score DESC, id
+  `) as any[]
 
   return (
     <PortalShell userName={user.full_name} userRole={user.role}>
@@ -63,6 +67,7 @@ export default async function OrderPage({
             reports,
             adverse,
             disputes,
+            discovered,
             isAdmin: user.role === 'admin',
           })
         )}
