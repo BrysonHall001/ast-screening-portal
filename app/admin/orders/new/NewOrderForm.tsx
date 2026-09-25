@@ -60,7 +60,7 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
       const data = await res.json()
       if (data.email_error) {
         alert(
-          `The screening was created, but the consent email did not send:\n\n${data.email_error}\n\nYou can copy the consent link from the next page, or fix email under Admin → Email and hit "Resend consent email".`
+          `The screening was created, but the consent email did not send:\n\n${data.email_error}\n\nYou can use \"Copy consent link\" on the next page to send it yourself.`
         )
       }
       router.push(`/admin/orders/${data.id}`)

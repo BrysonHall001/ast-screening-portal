@@ -72,7 +72,10 @@ export async function POST(req: NextRequest) {
       link,
     })
     const sent = await sendMail({ to: candidate_email, ...mail })
-    if (sent.ok) {
+    if (sent.method === 'log') {
+      emailError = 'Email is not set up yet, so nothing was sent.'
+      await audit(user.email, 'consent.invite_not_sent', orderId, { reason: 'email not configured' })
+    } else if (sent.ok) {
       await audit(user.email, 'consent.invite_sent', orderId)
     } else {
       emailError = sent.error || 'unknown error'

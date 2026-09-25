@@ -19,8 +19,8 @@ import { sql } from './db'
 //
 //   3. Nothing configured → the email is printed to the Render log instead.
 //
-// Every attempt is written to email_log (Admin → Email shows it), so a
-// failed send is never silent.
+// Every attempt is written to email_log for troubleshooting, and callers
+// get the result back so screens can say when a send failed.
 // ============================================================================
 
 export type MailMethod = 'microsoft' | 'smtp' | 'log'

@@ -31,6 +31,13 @@ export async function POST(
     link,
   })
   const sent = await sendMail({ to: order.candidate_email, ...mail })
+  if (sent.method === 'log') {
+    await audit(user.email, 'consent.invite_not_sent', id, { reason: 'email not configured' })
+    return NextResponse.json(
+      { error: 'Email is not set up yet, so nothing was sent. Use "Copy consent link" to send it yourself for now.' },
+      { status: 400 }
+    )
+  }
   if (!sent.ok) {
     await audit(user.email, 'consent.invite_failed', id, { error: sent.error })
     return NextResponse.json(

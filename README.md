@@ -180,10 +180,9 @@ page.
 
 ### Step 5 — Email (sends from projects@allstartalent.us)
 
-Until email is set up, the app writes every email to the Render log instead
-of sending it, and everything else still works. Admin → **Email** shows which
-method is active, has a **Send test email** button, and lists recent emails
-with any errors.
+Until email is set up, nothing is sent. The portal says so when you create
+a screening or click **Resend consent email**, and you can use **Copy consent
+link** to send the link yourself in the meantime.
 
 The app sends through **Microsoft 365** directly, as your company mailbox.
 No Resend or other email service is needed. This is a one-time, ~10-minute setup in
@@ -224,9 +223,11 @@ minutes.
 | `MS_CLIENT_SECRET` | the secret **Value** from step 3 |
 | `MAIL_FROM` | `projects@allstartalent.us` |
 
-Save → Render redeploys. Then open Admin → **Email → Send test email**.
+Save → Render redeploys. To check it works, create a test screening with
+your own email as the candidate: the consent email should arrive from
+projects@allstartalent.us within a minute (check junk the first time).
 
-If the test fails, the error message says why. The common ones are:
+If it fails, the portal shows the reason on screen. The common ones are:
 - *"missing the Mail.Send application permission"*: redo steps 4–5, and
   make sure you clicked **Grant admin consent**.
 - *"could not find the mailbox"*: check `MAIL_FROM` is spelled exactly

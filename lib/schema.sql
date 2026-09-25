@@ -225,8 +225,8 @@ CREATE TABLE IF NOT EXISTS discovered_profiles (
 CREATE INDEX IF NOT EXISTS discovered_profiles_order_idx ON discovered_profiles(order_id);
 
 -- ===================== Email log =====================
--- Every outbound email attempt, so a failed send is visible in
--- Admin → Email instead of disappearing silently.
+-- Every outbound email attempt (sent / failed / not configured), kept for
+-- troubleshooting.
 CREATE TABLE IF NOT EXISTS email_log (
   id         SERIAL PRIMARY KEY,
   to_address TEXT NOT NULL,
