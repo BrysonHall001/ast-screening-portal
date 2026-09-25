@@ -12,6 +12,8 @@ import { DeliveryPanel } from './DeliveryPanel'
 import { CategoryToggles } from '@/components/CategoryToggles'
 import { normalizeCategories } from '@/lib/categories'
 import type { Order, Consent, CandidateProfile, AuditEntry } from '@/lib/types'
+import { safeHref } from '@/lib/urls'
+import { ProfileDetails } from './ProfileDetails'
 
 interface Bundle {
   order: Order & { contact_email?: string | null; purged_at?: string | null }
@@ -60,6 +62,7 @@ export function OrderDetail({ initial }: { initial: Bundle }) {
   const [flash, setFlash] = useState('')
   const [newPlatform, setNewPlatform] = useState('Facebook')
   const [newUrl, setNewUrl] = useState('')
+  const [editingProfile, setEditingProfile] = useState(0)
 
   const consentLink =
     typeof window !== 'undefined'
@@ -180,31 +183,46 @@ export function OrderDetail({ initial }: { initial: Bundle }) {
               <p className="text-sm text-gray-400 mb-3">None yet.</p>
             )}
             <ul className="space-y-2 mb-4">
-              {profiles.map((p) => (
+              {profiles.map((p: any) => (
                 <li
                   key={p.id}
-                  className="flex items-center gap-3 border border-gray-100 rounded-lg px-3 py-2 text-sm"
+                  className="border border-gray-100 rounded-lg px-3 py-2 text-sm"
                 >
-                  <span className="font-medium text-gray-700 w-28 shrink-0">{p.platform}</span>
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-astblue-700 hover:underline truncate flex-1 inline-flex items-center gap-1"
-                  >
-                    <span className="truncate">{p.url}</span>
-                    <ExternalLink size={12} className="shrink-0" />
-                  </a>
-                  <span className="text-xs text-gray-400 shrink-0">
-                    {p.added_by === 'candidate' ? 'Candidate' : 'Analyst'}
-                  </span>
-                  <button
-                    onClick={() => act('remove_profile', { profile_id: p.id })}
-                    className="text-gray-300 hover:text-red-500"
-                    title="Remove"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-gray-700 w-28 shrink-0">{p.platform}</span>
+                    <a
+                      href={safeHref(p.url)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-astblue-700 hover:underline truncate flex-1 inline-flex items-center gap-1"
+                    >
+                      <span className="truncate">{p.url}</span>
+                      <ExternalLink size={12} className="shrink-0" />
+                    </a>
+                    <span className="text-xs text-gray-400 shrink-0">
+                      {p.added_by === 'candidate' ? 'Candidate' : 'Analyst'}
+                    </span>
+                    <button
+                      onClick={() => setEditingProfile(editingProfile === p.id ? 0 : p.id)}
+                      className="text-xs text-astblue-700 hover:underline shrink-0"
+                    >
+                      {p.followers != null || p.display_name ? 'Details ✓' : 'Details'}
+                    </button>
+                    <button
+                      onClick={() => act('remove_profile', { profile_id: p.id })}
+                      className="text-gray-300 hover:text-red-500"
+                      title="Remove"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  {editingProfile === p.id && (
+                    <ProfileDetails
+                      orderId={order.id}
+                      profile={p}
+                      onDone={() => setEditingProfile(0)}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -255,7 +273,7 @@ export function OrderDetail({ initial }: { initial: Bundle }) {
                   <li key={s.id} className="border border-gray-100 rounded-lg p-3 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-700">{s.platform}</span>
-                      <a href={s.url} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline truncate flex-1">
+                      <a href={safeHref(s.url)} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline truncate flex-1">
                         {s.url}
                       </a>
                       <span className="text-xs text-gray-300 shrink-0">score {s.score}</span>

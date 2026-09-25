@@ -48,7 +48,14 @@ export async function POST(
     candidateName: order.candidate_name,
     link,
   })
-  await sendMail({ to, ...mail })
+  const sent = await sendMail({ to, ...mail })
+  if (!sent.ok) {
+    await audit(user.email, 'report.delivery_failed', id, { to, error: sent.error })
+    return NextResponse.json(
+      { error: `The report email did not send, so the screening was NOT marked delivered. ${sent.error}` },
+      { status: 502 }
+    )
+  }
 
   await sql`
     UPDATE reports SET delivered_to = ${to}, delivered_at = NOW() WHERE id = ${report.id}

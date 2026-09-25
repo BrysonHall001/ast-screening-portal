@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { audit } from '@/lib/audit'
+import { normalizeUrl } from '@/lib/urls'
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const ALLOWED_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif']
@@ -60,7 +61,7 @@ export async function POST(
 
   const form = await req.formData()
   const platform = String(form.get('platform') || '').slice(0, 40)
-  const url = String(form.get('url') || '').trim().slice(0, 500) || null
+  const url = normalizeUrl(form.get('url'))
   const postedAt = String(form.get('posted_at') || '').trim() || null
   const contentText = String(form.get('content_text') || '').trim().slice(0, 10000) || null
   const file = form.get('image') as File | null

@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
   }
   const body = await req.json().catch(() => ({}))
   const { client_id, candidate_name, candidate_email, candidate_location, job_title, lookback_years, categories, send_now } = body
+  const opt = (v: any) => (String(v ?? '').trim().slice(0, 200) || null)
   if (!client_id || !candidate_name || !candidate_email) {
     return NextResponse.json(
       { error: 'Client, candidate name, and candidate email are required' },
@@ -48,17 +49,21 @@ export async function POST(req: NextRequest) {
   const rows = (await sql`
     INSERT INTO orders
       (client_id, candidate_name, candidate_email, candidate_location, job_title,
-       lookback_years, categories, status, consent_token, consent_sent_at, created_by)
+       lookback_years, categories, status, consent_token, consent_sent_at, created_by,
+       candidate_phone, candidate_company, candidate_high_school, candidate_college)
     VALUES
       (${client_id}, ${candidate_name}, ${candidate_email}, ${candidate_location || null},
        ${job_title || null}, ${lookback}, ${cats}, ${status}, ${token},
-       ${send_now ? new Date().toISOString() : null}, ${user.id})
+       ${send_now ? new Date().toISOString() : null}, ${user.id},
+       ${opt(body.candidate_phone)}, ${opt(body.candidate_company)},
+       ${opt(body.candidate_high_school)}, ${opt(body.candidate_college)})
     RETURNING id
   `) as { id: number }[]
   const orderId = rows[0].id
   await audit(user.email, 'order.created', orderId, {
     client_id, candidate_email, send_now: !!send_now,
   })
+  let emailError: string | null = null
   if (send_now) {
     const link = `${appUrl()}/consent/${token}`
     const mail = consentInviteEmail({
@@ -66,8 +71,13 @@ export async function POST(req: NextRequest) {
       clientName: clientRows[0].name,
       link,
     })
-    await sendMail({ to: candidate_email, ...mail })
-    await audit(user.email, 'consent.invite_sent', orderId)
+    const sent = await sendMail({ to: candidate_email, ...mail })
+    if (sent.ok) {
+      await audit(user.email, 'consent.invite_sent', orderId)
+    } else {
+      emailError = sent.error || 'unknown error'
+      await audit(user.email, 'consent.invite_failed', orderId, { error: emailError })
+    }
   }
-  return NextResponse.json({ id: orderId })
+  return NextResponse.json({ id: orderId, email_error: emailError })
 }

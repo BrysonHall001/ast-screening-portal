@@ -15,6 +15,7 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
   const [jobTitle, setJobTitle] = useState('')
   const [candidateLocation, setCandidateLocation] = useState('')
   const [lookback, setLookback] = useState(7)
+  const [extra, setExtra] = useState({ phone: '', company: '', high_school: '', college: '' })
   const [categories, setCategories] = useState(normalizeCategories(null))
   const [sendNow, setSendNow] = useState(true)
   const [error, setError] = useState('')
@@ -45,6 +46,10 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
         candidate_email: candidateEmail,
         candidate_location: candidateLocation || null,
         job_title: jobTitle || null,
+        candidate_phone: extra.phone,
+        candidate_company: extra.company,
+        candidate_high_school: extra.high_school,
+        candidate_college: extra.college,
         lookback_years: lookback,
         categories,
         send_now: sendNow,
@@ -53,6 +58,11 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
     setBusy(false)
     if (res.ok) {
       const data = await res.json()
+      if (data.email_error) {
+        alert(
+          `The screening was created, but the consent email did not send:\n\n${data.email_error}\n\nYou can copy the consent link from the next page, or fix email under Admin → Email and hit "Resend consent email".`
+        )
+      }
       router.push(`/admin/orders/${data.id}`)
       router.refresh()
     } else {
@@ -147,6 +157,29 @@ export function NewOrderForm({ clients }: { clients: Client[] }) {
             <p className="text-xs text-gray-400 mt-1">7 years is the standard default.</p>
           </div>
         </div>
+
+        <details className="border border-gray-200 rounded-lg px-4 py-3">
+          <summary className="text-sm font-medium text-gray-700 cursor-pointer">
+            More identifiers <span className="text-gray-400 font-normal">(optional — listed in the report under &ldquo;Subject properties provided&rdquo;)</span>
+          </summary>
+          <div className="grid sm:grid-cols-2 gap-4 mt-4">
+            {([
+              ['phone', 'Phone number'],
+              ['company', 'Current / recent employer'],
+              ['high_school', 'High school'],
+              ['college', 'College'],
+            ] as const).map(([key, label]) => (
+              <div key={key}>
+                <label className="block text-sm text-gray-600 mb-1">{label}</label>
+                <input
+                  value={extra[key]}
+                  onChange={(e) => setExtra({ ...extra, [key]: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-astblue-400"
+                />
+              </div>
+            ))}
+          </div>
+        </details>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">

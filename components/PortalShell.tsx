@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import clsx from 'clsx'
-import { ShieldCheck, Users, Building2, LogOut, ListChecks } from 'lucide-react'
+import { ShieldCheck, Users, Building2, LogOut, ListChecks, Mail } from 'lucide-react'
 import { Background } from './Background'
 import { PoweredBy } from './PoweredBy'
 
@@ -29,7 +29,10 @@ export function PortalShell({
     { href: '/admin', label: 'Screenings', icon: ListChecks, exact: false },
     { href: '/admin/clients', label: 'Clients', icon: Building2, exact: true },
     ...(userRole === 'admin'
-      ? [{ href: '/admin/users', label: 'Team', icon: Users, exact: true }]
+      ? [
+          { href: '/admin/users', label: 'Team', icon: Users, exact: true },
+          { href: '/admin/email', label: 'Email', icon: Mail, exact: true },
+        ]
       : []),
   ]
 

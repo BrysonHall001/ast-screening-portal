@@ -1,43 +1,189 @@
 import nodemailer from 'nodemailer'
+import { sql } from './db'
 
-// SMTP via env vars. If SMTP isn't configured yet, we log the email to the
-// console instead of sending, so the whole app works before email is set up.
+// ============================================================================
+// Outbound email. Three delivery methods, picked automatically from which
+// environment variables are set (first match wins):
 //
-//   SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM
+//   1. MICROSOFT 365 (recommended — works on Render's FREE plan)
+//        MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET, MAIL_FROM
+//      Sends through Microsoft Graph over HTTPS as the MAIL_FROM mailbox
+//      (e.g. projects@allstartalent.us). Needs a one-time app registration
+//      in the Microsoft 365 / Entra admin center — see README "Email".
 //
-// (Resend, Mailgun, SES, and Gmail app passwords all work — any SMTP creds.)
+//   2. SMTP with a password
+//        SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM
+//      For Outlook/M365: host smtp.office365.com, port 587. NOTE: Render's
+//      free plan blocks SMTP ports, and Microsoft disables password SMTP by
+//      default at the end of 2026 — so this is the fallback, not the plan.
+//
+//   3. Nothing configured → the email is printed to the Render log instead.
+//
+// Every attempt is written to email_log (Admin → Email shows it), so a
+// failed send is never silent.
+// ============================================================================
 
-function transporterOrNull() {
-  const host = process.env.SMTP_HOST
-  if (!host) return null
-  return nodemailer.createTransport({
-    host,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: Number(process.env.SMTP_PORT || 587) === 465,
+export type MailMethod = 'microsoft' | 'smtp' | 'log'
+
+export function mailMethod(): MailMethod {
+  if (process.env.MS_TENANT_ID && process.env.MS_CLIENT_ID && process.env.MS_CLIENT_SECRET) {
+    return 'microsoft'
+  }
+  if (process.env.SMTP_HOST) return 'smtp'
+  return 'log'
+}
+
+export function mailFrom(): string {
+  return (process.env.MAIL_FROM || 'screening@example.com').trim()
+}
+
+// ---------------- Microsoft Graph ----------------
+
+// Never let a stalled connection hang a request: give up after 15 seconds.
+async function fetchWithTimeout(url: string, init: RequestInit, ms = 15000): Promise<Response> {
+  const ctl = new AbortController()
+  const t = setTimeout(() => ctl.abort(), ms)
+  try {
+    return await fetch(url, { ...init, signal: ctl.signal })
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`Microsoft did not respond within ${ms / 1000} seconds. Try again in a minute.`)
+    }
+    throw new Error(`Could not reach Microsoft: ${String(err?.message || err)}`)
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+let _token: { value: string; expiresAt: number } | null = null
+
+async function graphToken(): Promise<string> {
+  if (_token && _token.expiresAt > Date.now() + 60_000) return _token.value
+  const tenant = process.env.MS_TENANT_ID!.trim()
+  const body = new URLSearchParams({
+    client_id: process.env.MS_CLIENT_ID!.trim(),
+    client_secret: process.env.MS_CLIENT_SECRET!.trim(),
+    scope: 'https://graph.microsoft.com/.default',
+    grant_type: 'client_credentials',
+  })
+  const res = await fetchWithTimeout(
+    `https://login.microsoftonline.com/${encodeURIComponent(tenant)}/oauth2/v2.0/token`,
+    { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }
+  )
+  const data: any = await res.json().catch(() => ({}))
+  if (!res.ok || !data.access_token) {
+    throw new Error(
+      `Microsoft sign-in failed (${res.status}): ${data.error_description || data.error || 'unknown error'}`.slice(0, 400)
+    )
+  }
+  _token = { value: data.access_token, expiresAt: Date.now() + (Number(data.expires_in) || 3000) * 1000 }
+  return _token.value
+}
+
+async function sendViaGraph(to: string, subject: string, text: string, replyTo?: string) {
+  const token = await graphToken()
+  const from = mailFrom()
+  const res = await fetchWithTimeout(
+    `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(from)}/sendMail`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: {
+          subject,
+          body: { contentType: 'Text', content: text },
+          toRecipients: [{ emailAddress: { address: to } }],
+          ...(replyTo ? { replyTo: [{ emailAddress: { address: replyTo } }] } : {}),
+        },
+        saveToSentItems: true,
+      }),
+    }
+  )
+  if (res.status !== 202 && !res.ok) {
+    const data: any = await res.json().catch(() => ({}))
+    const msg = data?.error?.message || data?.error?.code || 'unknown error'
+    let hint = ''
+    if (res.status === 403) hint = ' — the app registration is missing the Mail.Send application permission, or admin consent was not granted.'
+    if (res.status === 404) hint = ` — Microsoft could not find the mailbox "${from}". Check MAIL_FROM.`
+    throw new Error(`Microsoft send failed (${res.status}): ${msg}${hint}`.slice(0, 500))
+  }
+}
+
+// ---------------- SMTP ----------------
+
+async function sendViaSmtp(to: string, subject: string, text: string, replyTo?: string) {
+  const port = Number(process.env.SMTP_PORT || 587)
+  const t = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port,
+    secure: port === 465,
+    requireTLS: port === 587,
+    connectionTimeout: 15000,
     auth: process.env.SMTP_USER
       ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
       : undefined,
   })
+  try {
+    await t.sendMail({ from: mailFrom(), to, subject, text, replyTo })
+  } catch (err: any) {
+    const raw = String(err?.message || err)
+    let hint = ''
+    if (/ETIMEDOUT|ECONNREFUSED|timeout/i.test(raw)) {
+      hint = ' — the connection was blocked. Render\'s free plan blocks SMTP; use the Microsoft 365 method instead.'
+    } else if (/535|authentication|SmtpClientAuthentication/i.test(raw)) {
+      hint = ' — Microsoft rejected the password. SMTP AUTH may be disabled for this mailbox, or the account uses multi-factor sign-in.'
+    }
+    throw new Error((raw + hint).slice(0, 500))
+  }
 }
 
+// ---------------- Public API ----------------
+
+export interface SendResult {
+  ok: boolean
+  method: MailMethod
+  error?: string
+}
+
+async function logEmail(to: string, subject: string, r: SendResult) {
+  try {
+    await sql`
+      INSERT INTO email_log (to_address, subject, method, status, error)
+      VALUES (${to}, ${subject.slice(0, 300)}, ${r.method},
+              ${r.method === 'log' ? 'logged' : r.ok ? 'sent' : 'failed'}, ${r.error || null})
+    `
+  } catch (err) {
+    console.error('Could not write email_log:', err)
+  }
+}
+
+// Never throws: callers keep working even if email is down. The result is
+// returned (and logged) so screens can tell the user when a send failed.
 export async function sendMail(opts: {
   to: string
   subject: string
   text: string
-}) {
-  const t = transporterOrNull()
-  const from = process.env.MAIL_FROM || 'screening@example.com'
-  if (!t) {
+  replyTo?: string
+}): Promise<SendResult> {
+  const method = mailMethod()
+  let result: SendResult
+  if (method === 'log') {
     console.log(
-      `\n=== EMAIL (SMTP not configured; logging instead) ===\nTo: ${opts.to}\nFrom: ${from}\nSubject: ${opts.subject}\n\n${opts.text}\n=== END EMAIL ===\n`
+      `\n=== EMAIL (email not configured; logging instead) ===\nTo: ${opts.to}\nFrom: ${mailFrom()}\nSubject: ${opts.subject}\n\n${opts.text}\n=== END EMAIL ===\n`
     )
-    return
+    result = { ok: true, method }
+  } else {
+    try {
+      if (method === 'microsoft') await sendViaGraph(opts.to, opts.subject, opts.text, opts.replyTo)
+      else await sendViaSmtp(opts.to, opts.subject, opts.text, opts.replyTo)
+      result = { ok: true, method }
+    } catch (err: any) {
+      console.error('Email send failed:', err)
+      result = { ok: false, method, error: String(err?.message || err) }
+    }
   }
-  try {
-    await t.sendMail({ from, to: opts.to, subject: opts.subject, text: opts.text })
-  } catch (err) {
-    console.error('Email send failed:', err)
-  }
+  await logEmail(opts.to, opts.subject, result)
+  return result
 }
 
 export function appUrl(): string {

@@ -178,24 +178,95 @@ Visit `https://your-app.onrender.com/setup` and create the first admin.
 The page permanently locks itself afterward. Add teammates on the **Team**
 page.
 
-### Step 5 (optional, later) — Email sending
+### Step 5 — Email (sends from projects@allstartalent.us)
 
-Until you configure email, the app **logs emails to the Render console
-instead of sending them** — everything else works, and you can copy the
-consent link straight from the screening page and text/email it manually.
+Until email is set up, the app writes every email to the Render log instead
+of sending it, and everything else still works. Admin → **Email** shows which
+method is active, has a **Send test email** button, and lists recent emails
+with any errors.
 
-To send for real, add SMTP credentials (Resend, Mailgun, SES, and Gmail app
-passwords all work):
+The app sends through **Microsoft 365** directly, as your company mailbox.
+No Resend or other email service is needed. This is a one-time, ~10-minute setup in
+Microsoft's admin site. If a screen asks for permissions you don't have, that
+is the step to hand to IT.
 
-| Key | Example |
+**Part A — in Microsoft (entra.microsoft.com, sign in as an admin)**
+
+1. Go to **Entra ID → App registrations → New registration**.
+   - Name: `All-Star Screening Portal`
+   - Supported account types: **Single tenant** (the first option)
+   - Leave Redirect URI blank → **Register**
+2. On the page that opens (**Overview**), copy two values into a note:
+   - **Application (client) ID**
+   - **Directory (tenant) ID**
+3. Left menu → **Certificates & secrets → Client secrets → New client
+   secret**. Description `Render`, expiry **24 months** → **Add**.
+   Copy the **Value** column right away (NOT the "Secret ID"). Microsoft
+   only shows it once. Put a calendar reminder a few weeks before it
+   expires; you'll make a new one and paste it into Render.
+4. Left menu → **API permissions → Add a permission → Microsoft Graph →
+   Application permissions** → search `Mail.Send` → tick it → **Add
+   permissions**.
+5. Still on API permissions, click **Grant admin consent for (your
+   company)** → **Yes**. The status column should turn green.
+
+Recommended (ask IT): Mail.Send lets this app send as any mailbox in the
+company. IT can limit it to just projects@allstartalent.us (Microsoft calls
+this "RBAC for Applications" in Exchange Online). It takes them a few
+minutes.
+
+**Part B — in Render (your web service → Environment)**
+
+| Key | Value |
 |---|---|
-| `SMTP_HOST` | `smtp.resend.com` |
-| `SMTP_PORT` | `587` |
-| `SMTP_USER` | `resend` |
-| `SMTP_PASS` | your API key |
-| `MAIL_FROM` | `screening@allstartalent.com` |
+| `MS_TENANT_ID` | Directory (tenant) ID from step 2 |
+| `MS_CLIENT_ID` | Application (client) ID from step 2 |
+| `MS_CLIENT_SECRET` | the secret **Value** from step 3 |
+| `MAIL_FROM` | `projects@allstartalent.us` |
+
+Save → Render redeploys. Then open Admin → **Email → Send test email**.
+
+If the test fails, the error message says why. The common ones are:
+- *"missing the Mail.Send application permission"*: redo steps 4–5, and
+  make sure you clicked **Grant admin consent**.
+- *"could not find the mailbox"*: check `MAIL_FROM` is spelled exactly
+  right and is a real mailbox (a shared mailbox works too).
+- *"Microsoft sign-in failed … invalid client secret"*: you copied the
+  Secret ID instead of the Value; make a new secret (step 3).
+
+Optional: `REPORT_TIMEZONE` (default `America/New_York`) sets the time zone
+printed on reports.
+
+**Why not just the Outlook password?** Render's free plan blocks the ports
+that password email uses. Microsoft is also switching password sending off
+by default for all companies at the end of 2026. The app still supports it
+(`SMTP_HOST=smtp.office365.com`, `SMTP_PORT=587`, `SMTP_USER`, `SMTP_PASS`,
+`MAIL_FROM`) for a paid Render plan, but the Microsoft 365 method above is
+the one that keeps working.
 
 ---
+
+## Reports (v2)
+
+The report follows the industry-standard social media report layout, in
+All-Star branding: cover with notices → overview (abstract + flagged post
+summary) → profiles table → post insights (behavior bars, word cloud,
+followers/posts) → post guide → flagged post cards, four per page, with
+keyword highlights and redacted images → keyword-flagged posts → FCRA page.
+
+To fill it in fully:
+- **New screening → More identifiers** (optional): phone, employer, high
+  school, college. These show under "Subject properties provided."
+- **Screening page → each profile → Details**: display name, bio, and
+  following/followers/post counts, copied from the public profile. Blanks
+  print as "-".
+- **Delivery panel → Flagged post summary**: click **Draft with AI**, read
+  and edit it, then **Save summary**. Only the saved text goes into a report;
+  if you leave it blank, the report uses a plain summary of the flag counts.
+  The Abstract paragraph is computed from the data, not written by AI.
+
+Report text an attorney should approve (cover paragraph, review note,
+FCRA page wording, website) lives in `lib/legal.ts` with everything else.
 
 ## Try it end to end (5 minutes)
 
@@ -221,7 +292,11 @@ passwords all work):
 | `lib/schema.sql` | Database schema — the app runs this itself on boot |
 | `app/consent/[token]/` | The candidate consent flow |
 | `app/admin/` | Everything staff sees |
-| `lib/email.ts` | Email wording |
+| `lib/email.ts` | Email wording + how email is sent (Microsoft 365 / SMTP) |
+| `lib/report.ts` | The report PDF layout |
+| `lib/summary.ts` | AI draft of the report's flagged post summary |
+| `lib/urls.ts` | Cleans up typed links (adds the missing https://) |
+| `assets/fonts/` | Report font (Outfit, free open-source license) |
 | `lib/analyze.ts` | The AI analysis prompt + suppression rules |
 
 ---

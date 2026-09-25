@@ -10,6 +10,7 @@ import clsx from 'clsx'
 import { StatusPill } from '@/components/StatusPill'
 import { CATEGORY_LABELS } from '@/lib/categories'
 import type { Order, CandidateProfile, AnalysisFlag } from '@/lib/types'
+import { safeHref } from '@/lib/urls'
 
 const PLATFORMS = [
   'Facebook','Instagram','X (Twitter)','LinkedIn','TikTok','Reddit',
@@ -403,7 +404,7 @@ export function CaptureWorkspace({
                     <span className="font-medium text-gray-600">{item.platform}</span>
                     {item.posted_at && <span>posted {new Date(item.posted_at).toLocaleDateString('en-US')}</span>}
                     {item.url && (
-                      <a href={item.url} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline inline-flex items-center gap-0.5">
+                      <a href={safeHref(item.url)} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline inline-flex items-center gap-0.5">
                         source <ExternalLink size={10} />
                       </a>
                     )}
@@ -499,7 +500,7 @@ export function CaptureWorkspace({
                 return (
                   <li key={p.id} className="text-sm">
                     <a
-                      href={p.url}
+                      href={safeHref(p.url)}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-2 border border-gray-100 hover:border-astblue-300 rounded-lg px-3 py-2 transition-colors"
@@ -557,7 +558,7 @@ export function CaptureWorkspace({
                 <li key={s.id} className="border border-gray-100 rounded-lg p-2.5 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-700">{s.platform}</span>
-                    <a href={s.url} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline truncate flex-1">
+                    <a href={safeHref(s.url)} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline truncate flex-1">
                       {s.url}
                     </a>
                     <span className="text-gray-300">score {s.score}</span>

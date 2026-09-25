@@ -83,3 +83,26 @@ You have the right to obtain a free copy of your report from ${COMPANY_NAME} wit
 You have the right to dispute directly with ${COMPANY_NAME} the accuracy or completeness of any information in the report. To do so, reply to this email.
 
 Summary of Your Rights Under the FCRA: ${FCRA_SUMMARY_OF_RIGHTS_URL}`
+
+// ---------------------------------------------------------------------------
+// Report v2 text (cover page + FCRA page). Same rule: placeholder wording,
+// swap for counsel-approved language.
+// ---------------------------------------------------------------------------
+
+// Printed in the cover footer.
+export const COMPANY_WEBSITE = 'allstartalent.us'
+
+// The short paragraph under "SOCIAL MEDIA REPORT" on the cover.
+export const REPORT_COVER_SHORT = `This report has been prepared for lawful purposes solely for the end-user and individual identified above. It contains certain publicly available social media entries and internet content related to the individual. The report may be used by the end-user strictly in compliance with applicable federal, state, and local laws.`
+
+// The asterisk line under it. (The sample report you modeled this on said
+// "AI only, not reviewed by analyst" — this product is the opposite.)
+export const REPORT_REVIEW_NOTE = `*AI tools assisted in locating content. Every flagged item in this report was individually reviewed and confirmed by a trained analyst.`
+
+// Top of the FCRA page — the standard notice to users of consumer reports.
+export const FCRA_USER_NOTICE = `All users of consumer reports must comply with all applicable regulations, including regulations promulgated after this notice was first prescribed in 2004. Information about applicable regulations currently in effect can be found at the Consumer Financial Protection Bureau's website: www.consumerfinance.gov`
+
+export const FTC_EMPLOYER_GUIDE_URL =
+  'https://www.ftc.gov/business-guidance/resources/using-consumer-reports-what-employers-need-know'
+
+export const REPORT_DISCLAIMER = `This report has been prepared for lawful purposes solely for the end-user identified above. It contains certain social media entries and internet content related to the individual identified above. The information about the subject of this report was found exclusively in publicly available sources, including social media platforms and search engines. This report may be used by the end-user strictly in compliance with applicable federal, state, and local laws.`

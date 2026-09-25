@@ -72,6 +72,33 @@ export function DeliveryPanel({
   const [deliverEmail, setDeliverEmail] = useState(contactEmail || '')
   const [disputeText, setDisputeText] = useState('')
   const [resolveText, setResolveText] = useState<Record<number, string>>({})
+  const savedSummary: string = (order as any).report_summary || ''
+  const [summary, setSummary] = useState(savedSummary)
+  const summaryDirty = summary.trim() !== savedSummary.trim()
+
+  async function draftWithAI() {
+    if (summary.trim() && !confirm('Replace the current text with a new AI draft?')) return
+    setBusy('draft')
+    setFlash('')
+    const res = await fetch(`/api/orders/${order.id}/summary`, { method: 'POST' })
+    const data = await res.json().catch(() => ({}))
+    setBusy('')
+    if (res.ok) setSummary(data.draft)
+    else setFlash(data.error || 'Drafting failed')
+  }
+
+  async function saveSummary() {
+    setBusy('save_summary')
+    setFlash('')
+    const res = await fetch(`/api/orders/${order.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save_summary', summary }),
+    })
+    setBusy('')
+    if (res.ok) router.refresh()
+    else setFlash((await res.json().catch(() => ({}))).error || 'Save failed')
+  }
 
   const latest = reports[0]
   const purged = !!(order as any).purged_at
@@ -138,6 +165,42 @@ export function DeliveryPanel({
             ) : (
               <p className="text-sm text-gray-400 mb-3">Not generated yet.</p>
             )}
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Flagged post summary (appears on the report&apos;s overview page)
+              </label>
+              <textarea
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                rows={5}
+                placeholder="Leave blank to use a plain summary of the confirmed flag counts."
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+              />
+              <div className="flex items-center gap-2 mt-1.5">
+                <button
+                  onClick={draftWithAI}
+                  disabled={!!busy}
+                  className="border border-gray-200 hover:border-astblue-400 rounded-md px-2.5 py-1 text-xs text-gray-700 disabled:opacity-60"
+                >
+                  {busy === 'draft' ? 'Drafting…' : 'Draft with AI'}
+                </button>
+                <button
+                  onClick={saveSummary}
+                  disabled={!!busy || !summaryDirty}
+                  className="bg-astblue-600 hover:bg-astblue-700 text-white rounded-md px-2.5 py-1 text-xs disabled:opacity-40"
+                >
+                  {busy === 'save_summary' ? 'Saving…' : 'Save summary'}
+                </button>
+                <span className="text-xs text-gray-400 ml-auto">
+                  {summaryDirty ? 'Unsaved — read it over, then save' : savedSummary ? 'Saved' : ''}
+                </span>
+              </div>
+              {summaryDirty && (
+                <p className="text-xs text-amber-700 mt-1">
+                  Only the saved version goes in the report. Save before generating.
+                </p>
+              )}
+            </div>
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => call('generate', `/api/orders/${order.id}/report`)}

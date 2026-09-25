@@ -11,6 +11,7 @@ import clsx from 'clsx'
 import { StatusPill } from '@/components/StatusPill'
 import { CATEGORIES, CATEGORY_LABELS, normalizeCategories } from '@/lib/categories'
 import type { Order, AnalysisFlag } from '@/lib/types'
+import { safeHref } from '@/lib/urls'
 
 interface ItemRow {
   id: number
@@ -228,7 +229,7 @@ export function ReviewQueue({
                     <span className="font-medium text-gray-600">{item.platform}</span>
                     {item.posted_at && <span>{new Date(item.posted_at).toLocaleDateString('en-US')}</span>}
                     {item.url && (
-                      <a href={item.url} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline inline-flex items-center gap-0.5">
+                      <a href={safeHref(item.url)} target="_blank" rel="noreferrer" className="text-astblue-700 hover:underline inline-flex items-center gap-0.5">
                         source <ExternalLink size={10} />
                       </a>
                     )}

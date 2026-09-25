@@ -17,6 +17,7 @@ import {
 import { collectForOrder } from '@/lib/collect'
 import { runAnalysis } from '@/lib/runAnalysis'
 import { discoverForOrder } from '@/lib/discover'
+import { normalizeUrl } from '@/lib/urls'
 
 // No auth here — the high-entropy token IS the credential. Everything is
 // keyed strictly to the one order that owns the token.
@@ -134,8 +135,8 @@ export async function POST(
     let saved = 0
     for (const p of profiles.slice(0, 20)) {
       const platform = String(p.platform || '').slice(0, 40)
-      const url = String(p.url || '').trim().slice(0, 500)
-      if (!platform || !/^https?:\/\//i.test(url)) continue
+      const url = normalizeUrl(p.url)
+      if (!platform || !url) continue
       await sql`
         INSERT INTO candidate_profiles (order_id, platform, url, added_by)
         VALUES (${order.id}, ${platform}, ${url}, 'candidate')

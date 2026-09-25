@@ -223,3 +223,46 @@ CREATE TABLE IF NOT EXISTS discovered_profiles (
   UNIQUE (order_id, url)
 );
 CREATE INDEX IF NOT EXISTS discovered_profiles_order_idx ON discovered_profiles(order_id);
+
+-- ===================== Email log =====================
+-- Every outbound email attempt, so a failed send is visible in
+-- Admin → Email instead of disappearing silently.
+CREATE TABLE IF NOT EXISTS email_log (
+  id         SERIAL PRIMARY KEY,
+  to_address TEXT NOT NULL,
+  subject    TEXT NOT NULL,
+  method     TEXT NOT NULL,
+  status     TEXT NOT NULL,
+  error      TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS email_log_created_idx ON email_log(created_at DESC);
+
+-- ===================== Link repair =====================
+-- Links saved without "https://" opened as broken pages inside the portal.
+-- Safe to run every boot: only touches rows that lack a scheme.
+UPDATE candidate_profiles SET url = 'https://' || btrim(url)
+  WHERE btrim(url) !~* '^https?://' AND btrim(url) <> '';
+UPDATE content_items SET url = 'https://' || btrim(url)
+  WHERE url IS NOT NULL AND btrim(url) !~* '^https?://' AND btrim(url) <> '';
+
+-- ===================== Report v2 (Guardian-style layout) =====================
+-- Optional identifiers shown in the report's "Subject properties provided".
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS candidate_phone TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS candidate_company TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS candidate_high_school TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS candidate_college TEXT;
+-- The analyst-approved "Flagged post summary" paragraph. AI can DRAFT it,
+-- but only text a human saved here reaches a report.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS report_summary TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS report_summary_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS report_summary_at TIMESTAMPTZ;
+-- Per-profile details for the report's profiles table (entered by the
+-- analyst from the public profile page; all optional).
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS display_name TEXT;
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS handle TEXT;
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS following INTEGER;
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS followers INTEGER;
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS post_count INTEGER;
+ALTER TABLE candidate_profiles ADD COLUMN IF NOT EXISTS is_private BOOLEAN NOT NULL DEFAULT FALSE;

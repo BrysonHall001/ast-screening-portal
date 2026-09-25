@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sql } from '@/lib/db'
 import { requireUser } from '@/lib/auth'
 import { audit } from '@/lib/audit'
+import { normalizeUrl } from '@/lib/urls'
 
 export async function GET(
   _req: NextRequest,
@@ -56,15 +57,54 @@ export async function PATCH(
     return NextResponse.json({ ok: true })
   }
   if (body.action === 'add_profile') {
-    const { platform, url } = body
+    const platform = String(body.platform || '').slice(0, 40)
+    const url = normalizeUrl(body.url)
     if (!platform || !url) {
-      return NextResponse.json({ error: 'Platform and URL required' }, { status: 400 })
+      return NextResponse.json({ error: 'Platform and a valid link are required' }, { status: 400 })
     }
     await sql`
       INSERT INTO candidate_profiles (order_id, platform, url, added_by)
       VALUES (${id}, ${platform}, ${url}, 'analyst')
     `
     await audit(user.email, 'profile.added_by_analyst', id, { platform, url })
+    return NextResponse.json({ ok: true })
+  }
+  if (body.action === 'update_profile') {
+    const pid = Number(body.profile_id)
+    const txt = (v: any, n: number) => {
+      const t = String(v ?? '').trim()
+      return t ? t.slice(0, n) : null
+    }
+    const num = (v: any) => {
+      if (v === null || v === undefined || String(v).trim() === '') return null
+      const n = Math.round(Number(String(v).replace(/[, ]/g, '')))
+      return Number.isFinite(n) && n >= 0 ? n : null
+    }
+    const d = body.details || {}
+    await sql`
+      UPDATE candidate_profiles SET
+        display_name = ${txt(d.display_name, 120)},
+        handle       = ${txt(d.handle, 120)},
+        bio          = ${txt(d.bio, 300)},
+        following    = ${num(d.following)},
+        followers    = ${num(d.followers)},
+        post_count   = ${num(d.post_count)},
+        is_private   = ${!!d.is_private}
+      WHERE id = ${pid} AND order_id = ${id}
+    `
+    await audit(user.email, 'profile.details_updated', id, { profile_id: pid })
+    return NextResponse.json({ ok: true })
+  }
+  if (body.action === 'save_summary') {
+    const text = String(body.summary ?? '').trim().slice(0, 3000) || null
+    await sql`
+      UPDATE orders SET report_summary = ${text},
+        report_summary_by = ${text ? user.id : null},
+        report_summary_at = ${text ? new Date().toISOString() : null},
+        updated_at = NOW()
+      WHERE id = ${id}
+    `
+    await audit(user.email, 'report.summary_saved', id, { chars: text?.length || 0 })
     return NextResponse.json({ ok: true })
   }
   if (body.action === 'remove_profile') {

@@ -30,7 +30,14 @@ export async function POST(
     clientName: order.client_name,
     link,
   })
-  await sendMail({ to: order.candidate_email, ...mail })
+  const sent = await sendMail({ to: order.candidate_email, ...mail })
+  if (!sent.ok) {
+    await audit(user.email, 'consent.invite_failed', id, { error: sent.error })
+    return NextResponse.json(
+      { error: `The email did not send: ${sent.error}` },
+      { status: 502 }
+    )
+  }
   await sql`
     UPDATE orders SET status = 'consent_sent',
       consent_sent_at = COALESCE(consent_sent_at, NOW()), updated_at = NOW()
