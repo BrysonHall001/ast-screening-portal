@@ -82,17 +82,19 @@ export interface ReportInput {
 const PAGE_W = 595.28 // A4, like the sample
 const PAGE_H = 841.89
 
-const NAVY = '#0B1A45'
-const NAVY_DEEP = '#070F2B'
-const NAVY_SOFT = '#13296B'
-const INK = '#1E2A52'
-const BODY = '#3B4257'
-const MUTED = '#8A91A5'
+// All-Star Talent palette (matches the portal's 'allstar' theme):
+// deep green #081C24 + orange #F87C04 with matching tints.
+const NAVY = '#081C24'       // main dark (header bands, bars, backgrounds)
+const NAVY_DEEP = '#04121A'  // gradient ends
+const NAVY_SOFT = '#1A4553'  // background curves
+const INK = '#0F2A33'        // headings
+const BODY = '#3A4A50'
+const MUTED = '#8A9599'
 const CARD = '#EDEDEB'
 const TRACK = '#EEEEEE'
-const BLUE = '#4C7BE8'
-const BLUE_LINE = '#A9C1F5'
-const HIGHLIGHT = '#F5A800'
+const BLUE = '#F87C04'       // accent (was blue in the Guardian layout)
+const BLUE_LINE = '#FCB877'  // card outlines
+const HIGHLIGHT = '#F87C04'  // keyword highlight
 const BRAND_ORANGE = '#F87C04'
 
 // ---------------- Fonts ----------------
@@ -253,7 +255,7 @@ export function wordFrequencies(texts: string[], limit = 40): { word: string; n:
     .slice(0, limit)
 }
 
-const CLOUD_COLORS = ['#0B1A45', '#2C4A9A', '#4C7BE8', '#6F93E8', '#3A5FC0']
+const CLOUD_COLORS = ['#081C24', '#1A4553', '#F87C04', '#D96A03', '#2F5A66']
 
 function drawWordCloud(
   doc: PDFKit.PDFDocument,
@@ -324,8 +326,8 @@ function topBar(doc: PDFKit.PDFDocument) {
 
 function avatar(doc: PDFKit.PDFDocument, F: Fonts, name: string, cx: number, cy: number, r: number, ring = false) {
   if (ring) doc.circle(cx, cy, r + 1.5).fill('#FFFFFF')
-  doc.circle(cx, cy, r).fill('#E6EBF2')
-  doc.circle(cx, cy, r * 0.86).lineWidth(0.8).stroke('#CBD5E6')
+  doc.circle(cx, cy, r).fill('#E8EEEF')
+  doc.circle(cx, cy, r * 0.86).lineWidth(0.8).stroke('#C9D6D9')
   const txt = initials(name)
   const size = r * 0.72
   doc.font(F.semibold).fontSize(size)
@@ -347,10 +349,8 @@ function brandMark(doc: PDFKit.PDFDocument, F: Fonts, x: number, y: number) {
   }
   doc.path(`M ${pts.join(' L ')} Z`).fill(BRAND_ORANGE)
   doc.restore()
-  doc.font(F.semibold).fontSize(9.5).fill('#FFFFFF')
-    .text('ALL-STAR', x + 16, y + 0.5, { lineBreak: false, characterSpacing: 1.6 })
-  doc.font(F.regular).fontSize(4.2).fill('#C9D1E8')
-    .text('SCREENING', x + 16.5, y + 11.2, { lineBreak: false, characterSpacing: 2.4 })
+  doc.font(F.semibold).fontSize(11).fill('#FFFFFF')
+    .text('All-Star Talent', x + 17, y + 1.2, { lineBreak: false, characterSpacing: 0.3 })
 }
 
 function platformIcon(doc: PDFKit.PDFDocument, F: Fonts, platform: string, cx: number, cy: number, s: number, color = BLUE) {
@@ -682,7 +682,7 @@ export async function buildReportPdf(input: ReportInput): Promise<Buffer> {
     const w = Math.max(39, doc.widthOfString(value) + 18)
     doc.roundedRect(cx - w / 2, statY, w, 28, 4).lineWidth(0.8).stroke('#FFFFFF')
     doc.fill('#FFFFFF').text(value, cx - w / 2, statY + 7.5, { width: w, align: 'center', lineBreak: false })
-    doc.font(F.regular).fontSize(7.5).fill('#C9D1E8').text(label, cx - 80, statY + 38, { width: 160, align: 'center', lineBreak: false })
+    doc.font(F.regular).fontSize(7.5).fill('#C5D3D6').text(label, cx - 80, statY + 38, { width: 160, align: 'center', lineBreak: false })
   }
   stat(181, String(input.profiles.length), 'SOCIAL PROFILES')
   stat(405, String(totalBehaviors), 'FLAGGED BEHAVIORS')
@@ -825,10 +825,10 @@ export async function buildReportPdf(input: ReportInput): Promise<Buffer> {
   fitLine(doc, F.bold, name, 111, 28, 440, 24, '#FFFFFF')
   doc.font(F.regular).fontSize(14).fill('#FFFFFF').text('POST INSIGHTS', 111, 60, { lineBreak: false })
 
-  doc.font(F.semibold).fontSize(12).fill('#101A3A').text('BEHAVIORAL COMPOSITION', 32, 143, { lineBreak: false })
+  doc.font(F.semibold).fontSize(12).fill(INK).text('BEHAVIORAL COMPOSITION', 32, 143, { lineBreak: false })
   doc.font(F.regular).fontSize(7.8).fill('#666666').text('This graph indicates the number of posts that were flagged for each behavioral attribute.', 32, 163, { width: 230, lineGap: 3 })
   doc.roundedRect(457, 142, 106, 59, 9).lineWidth(0.8).stroke('#222222')
-  doc.font(F.bold).fontSize(22).fill('#101A3A').text(String(totalBehaviors), 469, 152, { lineBreak: false })
+  doc.font(F.bold).fontSize(22).fill(INK).text(String(totalBehaviors), 469, 152, { lineBreak: false })
   doc.font(F.regular).fontSize(6.5).fill('#222222').text('FLAGGED BEHAVIORS', 469, 181, { lineBreak: false })
 
   const catKeys = [...input.enabledCategoryKeys, ...(keywordList.length ? ['keywords'] : [])]
@@ -856,14 +856,14 @@ export async function buildReportPdf(input: ReportInput): Promise<Buffer> {
 
   const cloudTop = Math.max(390, 222 + half * 16.3 + 40)
   drawWordCloud(doc, F, words, { x: 34, y: cloudTop, w: 238, h: 190 })
-  doc.font(F.semibold).fontSize(12).fill('#101A3A').text('WORD CLOUD', 299, cloudTop + 15, { lineBreak: false })
+  doc.font(F.semibold).fontSize(12).fill(INK).text('WORD CLOUD', 299, cloudTop + 15, { lineBreak: false })
   doc.font(F.regular).fontSize(7.8).fill('#666666').text(
     `This is your subject's word cloud. It provides insight into the topics your subject refers to most often in their reviewed posts. The larger the word, the higher the frequency. Colors are for readability only.`,
     299, cloudTop + 35, { width: 265, lineGap: 3.2 }
   )
 
   const pfY = cloudTop + 222
-  doc.font(F.semibold).fontSize(12).fill('#101A3A').text('POSTS AND FOLLOWERS', 32, pfY, { lineBreak: false })
+  doc.font(F.semibold).fontSize(12).fill(INK).text('POSTS AND FOLLOWERS', 32, pfY, { lineBreak: false })
   doc.font(F.regular).fontSize(7.8).fill('#666666').text(
     'This shows the total followers, followings, and post count across all social media platforms that expose these metrics. Note that not all platforms report these values.',
     32, pfY + 20, { width: 530, lineGap: 3 }
@@ -871,7 +871,7 @@ export async function buildReportPdf(input: ReportInput): Promise<Buffer> {
   const boxY = pfY + 48
   doc.roundedRect(32, boxY, 531, 100, 9).fill(CARD)
   const pfStat = (cx: number, v: string, label: string) => {
-    doc.font(F.bold).fontSize(22).fill('#101A3A').text(v, cx - 80, boxY + 28, { width: 160, align: 'center', lineBreak: false })
+    doc.font(F.bold).fontSize(22).fill(INK).text(v, cx - 80, boxY + 28, { width: 160, align: 'center', lineBreak: false })
     doc.font(F.regular).fontSize(10).fill('#222222').text(label, cx - 80, boxY + 58, { width: 160, align: 'center', lineBreak: false })
   }
   pfStat(123, withStat('followers').length ? fmtNum(sum('followers')) : '-', 'Total followers')
@@ -963,7 +963,7 @@ export async function buildReportPdf(input: ReportInput): Promise<Buffer> {
     doc.roundedRect(sx + 11, sy + 19, 43, 13, 2.5).lineWidth(0.6).stroke(BLUE)
     doc.font(F.light).fontSize(7).fill(BLUE).text(pt.label, sx + 11, sy + 22.6, { width: 43, align: 'center', lineBreak: false })
     if (it.url) doc.link(sx + 11, sy + 19, 43, 13, it.url)
-    doc.font(F.light).fontSize(5.8).fill('#A0A7B8')
+    doc.font(F.light).fontSize(5.8).fill('#9AA5A9')
       .text(fmtDate(it.posted_at), sx + CW - 111, sy + 23, { width: 100, align: 'right', lineBreak: false })
 
     let cy = sy + 42
@@ -1057,14 +1057,14 @@ export async function buildReportPdf(input: ReportInput): Promise<Buffer> {
   }
   const heading = (t: string) => {
     ensure(40)
-    doc.font(F.semibold).fontSize(8.3).fill('#2B3350').text(t, 32, fy, { lineBreak: false })
+    doc.font(F.semibold).fontSize(8.3).fill(INK).text(t, 32, fy, { lineBreak: false })
     fy += 15
   }
   const para = (t: string, opts: { bold?: boolean; link?: string } = {}) => {
     doc.font(opts.bold ? F.semibold : F.regular).fontSize(8.3)
     const h = doc.heightOfString(t, { width: TW, lineGap: 1.5 })
     ensure(h)
-    doc.fill(opts.link ? '#2B3350' : '#4B5270')
+    doc.fill(opts.link ? INK : BODY)
       .text(t, 32, fy, { width: TW, lineGap: 1.5, link: opts.link, underline: !!opts.link })
     fy = doc.y + 9
   }
